@@ -1,0 +1,174 @@
+{
+  "patterns": [
+    {
+      "id": "SQL-INJECTION-001",
+      "regex": "SQL syntax.*?error|incorrect syntax near|syntax error at or near",
+      "description": "Detects SQL injection attempts triggering database syntax errors."
+    },
+    {
+      "id": "SQL-INJECTION-002",
+      "regex": "unclosed quotation mark after the character string|quoted string not properly terminated",
+      "description": "Identifies SQL injection attempts with unclosed quotes."
+    },
+    {
+      "id": "SQL-INJECTION-003",
+      "regex": "select\\s+.*?from|union\\s+select|1=1|'\\s*or\\s*'\\s*1\\s*=\\s*'\\s*1|--|;|#|version\\(\\)",
+      "description": "Matches SQL injection patterns in URLs or parameters."
+    },
+    {
+      "id": "XSS-001",
+      "regex": "<script>.*?</script>|<.*?on\\\\w+\\\\s*=\\\\s*['\"]?[^>]+>",
+      "description": "Detects inline script tags or event handlers in user input, indicating potential XSS attacks."
+    },
+    {
+      "id": "XSS-002",
+      "regex": "javascript:.*?\\\\(|data:.*?base64|eval\\\\(|alert\\\\(",
+      "description": "Identifies XSS attempts using javascript:/data: protocols or malicious functions."
+    },
+    {
+      "id": "XSS-003",
+      "regex": "<img\\\\s+src\\\\s*=\\\\s*['\"]?javascript:|<iframe\\\\s+src\\\\s*=\\\\s*['\"]?javascript:",
+      "description": "Matches XSS in image or iframe tags with javascript: sources."
+    },
+    {
+      "id": "FAILED-LOGIN-001",
+      "regex": "failed login|authentication failed|invalid password|access denied|login attempt failed|401 Unauthorized",
+      "description": "Detects unsuccessful login attempts, potentially indicating unauthorized access."
+    },
+    {
+      "id": "BRUTE-FORCE-001",
+      "regex": "multiple failed login attempts|repeated login failures|account locked|too many login attempts",
+      "description": "Detects brute force attacks via repeated failed logins."
+    },
+    {
+      "id": "SUSPICIOUS-IP-001",
+      "regex": "suspicious activity from IP|blocked IP|blacklisted IP|IP address flagged",
+      "description": "Identifies activity from flagged or blocked IPs."
+    },
+    {
+      "id": "FILE-INCLUSION-001",
+      "regex": "include.*?\\.\\.|require.*?\\.\\.|import.*?\\.\\.|\\.\\./|\\.\\.\\\\|/etc/passwd|/proc/self/environ",
+      "description": "Detects Local/Remote File Inclusion attempts."
+    },
+    {
+      "id": "PATH-TRAVERSAL-001",
+      "regex": "\\.\\.(/|\\\\)|/%2e%2e/|\\.\\.%2f|\\.\\.%5c|/etc/passwd|/etc/shadow|/proc/self/environ",
+      "description": "Matches directory traversal attempts."
+    },
+    {
+      "id": "COMMAND-INJECTION-001",
+      "regex": "command execution|shell command|exec\\(|system\\(|popen\\(|passthru\\(|\\?cmd=|\\|.*\\||&&.*&&|;`.*`|;.*curl",
+      "description": "Identifies command injection attempts."
+    },
+    {
+      "id": "API-ABUSE-001",
+      "regex": "((GET|POST).*?\\s-\\s200\\sOK\\s*\\n.*?){4,}",
+      "description": "Detects API abuse via 4+ rapid, successful requests."
+    },
+    {
+      "id": "PROBING-001",
+      "regex": "((GET|POST).*?\\s-\\s200\\sOK\\s*\\n.*?){3,}",
+      "description": "Detects probing with 3+ rapid requests."
+    },
+    {
+      "id": "CSRF-001",
+      "regex": "missing CSRF token|invalid CSRF token|CSRF token validation failed",
+      "description": "Detects missing or invalid CSRF tokens in POST requests."
+    },
+    {
+      "id": "CSRF-002",
+      "regex": "POST.*?\\s-\\s200\\sOK.*?(?!CSRF token)",
+      "description": "Flags POST requests lacking CSRF token validation."
+    },
+    {
+      "id": "SESSION-HIJACKING-001",
+      "regex": "session fixation|invalid session ID|session token mismatch|unexpected session change",
+      "description": "Detects session manipulation attempts."
+    },
+    {
+      "id": "RCE-001",
+      "regex": "remote code execution|eval\\(|assert\\(|preg_replace.*?/e|create_function\\(",
+      "description": "Matches Remote Code Execution attempts."
+    },
+    {
+      "id": "DOS-001",
+      "regex": "denial of service|resource exhaustion|too many connections|connection limit exceeded",
+      "description": "Identifies general DoS attacks."
+    },
+    {
+      "id": "XML-INJECTION-001",
+      "regex": "<!\\[CDATA\\[.*?\\]\\]>|<!DOCTYPE.*?>|<?xml.*?>",
+      "description": "Detects XML injection attempts."
+    },
+    {
+      "id": "SSRF-001",
+      "regex": "http://localhost|http://127\\.0\\.0\\.1|http://169\\.254\\.169\\.254|file://|gopher://|dict://",
+      "description": "Matches Server-Side Request Forgery attempts."
+    },
+    {
+      "id": "BOT-ACTIVITY-001",
+      "regex": "crawler|spider|bot|scraping detected|non-human activity|User-Agent:.*?bot",
+      "description": "Detects automated bot or crawler activity."
+    },
+    {
+      "id": "DOS-HTTP-FLOOD-001",
+      "regex": "ATTACK=HTTP Flood",
+      "description": "Detects HTTP flood attacks targeting port 80."
+    },
+    {
+      "id": "SUSPICIOUS-DENY-001",
+      "regex": "ACTION=DENY",
+      "description": "Detects denied network traffic."
+    },
+    {
+      "id": "ICMP-ABUSE-001",
+      "regex": "PROTO=ICMP.*ACTION=DENY",
+      "description": "Detects denied ICMP traffic."
+    },
+    {
+      "id": "UDP-ABUSE-001",
+      "regex": "PROTO=UDP.*ACTION=DENY",
+      "description": "Detects denied UDP traffic."
+    },
+    {
+      "id": "TIMESTAMP-ANOMALY-001",
+      "regex": "^(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}).*\\n\\1.*\\n\\1",
+      "description": "Detects multiple log entries with identical timestamps."
+    },
+    {
+      "id": "DDOS-HIGH-RATE-001",
+      "regex": "High request rate|requests in \\d+ seconds|requests/min",
+      "description": "Detects high request rates indicating DDoS."
+    },
+    {
+      "id": "DDOS-SYSTEM-OVERLOAD-001",
+      "regex": "System overload|CPU at \\d+%|memory exhaustion",
+      "description": "Identifies server resource exhaustion."
+    },
+    {
+      "id": "DDOS-ALERT-001",
+      "regex": "Potential DDoS attack|distributed denial of service|attack detected.*requests.*IPs",
+      "description": "Matches explicit DDoS alerts."
+    },
+    {
+      "id": "DDOS-MITIGATION-001",
+      "regex": "Rate limiting triggered|Firewall rule applied|connections dropped",
+      "description": "Detects DDoS mitigation actions."
+    },
+    {
+      "id": "DDOS-DISTRIBUTED-001",
+      "regex": "(INFO: (\\d+\\.\\d+\\.\\d+\\.\\d+).*?GET /.*?\\s-\\s200\\sOK\\s*\\n.*?){5,}",
+      "description": "Detects rapid GET requests to the root endpoint from 5+ distinct IPs."
+    },
+    {
+      "id": "DDOS-GET-FLOOD-001",
+      "regex": "(INFO: \\d+\\.\\d+\\.\\d+\\.\\d+ - GET / - 200 OK\\s*\\n.*?){5,}",
+      "description": "Detects 5+ GET requests to the root endpoint, marking it as a DDoS attack."
+    },
+    {
+      "id": "ALERT-DETECTION-001",
+      "regex": "ALERT:.*(SSRF|Command injection|attack detected)",
+      "description": "Detects alert messages indicating SSRF, command injection, or other attacks."
+    }
+  ]
+}

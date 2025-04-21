@@ -274,55 +274,319 @@ class DeepSeekReasoner:
         self.deepseek_api_key = DEEPSEEK_API_KEY
         self.openai_api_url = OPENAI_API_URL
         self.openai_api_key = OPENAI_API_KEY
+        self.lm_studio_url = os.getenv("LM_STUDIO_URL", "http://localhost:1234/v1/chat/completions")
     
     def analyze_logs(self, structured_logs: Dict[str, Any], basic_findings: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Use the DeepSeek reasoning model to analyze the structured logs."""
+        """Use OpenAI first, then DeepSeek as fallback, and send to LM Studio for training."""
+        
+        # Create prompt once to reuse
+        prompt = self._create_prompt(structured_logs, basic_findings)
+        lm_studio_training_result = None
         
         try:
-            # Check if DeepSeek API key is valid
+            # Try OpenAI first if API key is valid
+            if self.openai_api_key and len(self.openai_api_key) > 10:
+                try:
+                    print("\n========================================")
+                    print("🔵 ATTEMPTING TO USE GPT-4o (OPENAI API)")
+                    print("========================================")
+                    
+                    # Make the API call to OpenAI
+                    response = self._call_openai_api(prompt)
+                    
+                    # Parse the response
+                    result = self._parse_response(response)
+                    result["source"] = "openai_gpt4o"
+                    result["model"] = "gpt-4o"
+                    
+                    print("✅ SUCCESS: Response received from OpenAI GPT-4o")
+                    print(f"📋 Response length: {len(result.get('raw_response', ''))}")
+                    
+                    # Send to LM Studio for training
+                    lm_studio_training_result = self._send_to_lm_studio_for_training(prompt, result)
+                    
+                    return result
+                except Exception as openai_e:
+                    print(f"❌ ERROR using OpenAI API: {str(openai_e)}")
+                    # Continue to DeepSeek if OpenAI fails
+            
+            # Try DeepSeek if OpenAI isn't configured or failed
             if self.deepseek_api_key and len(self.deepseek_api_key) > 10:
-                # Create a prompt for the DeepSeek model
-                prompt = self._create_prompt(structured_logs, basic_findings)
-                
-                # Make the API call to DeepSeek
-                response = self._call_deepseek_api(prompt)
-                
-                # Parse the response
-                return self._parse_response(response)
-            # Try OpenAI as fallback
-            elif self.openai_api_key and len(self.openai_api_key) > 10:
-                print("Using OpenAI API as fallback")
-                # Create a prompt
-                prompt = self._create_prompt(structured_logs, basic_findings)
-                
-                # Make the API call to OpenAI
-                response = self._call_openai_api(prompt)
-                
-                # Parse the response
-                return self._parse_response(response)
-            else:
-                # Use fallback mode with simulated response if no API keys are available
-                print("Using fallback mode - No API keys configured")
-                return self._generate_fallback_response(structured_logs, basic_findings)
+                try:
+                    print("\n=========================================")
+                    print("🟢 ATTEMPTING TO USE DEEPSEEK API")
+                    print("=========================================")
+                    
+                    # Make the API call to DeepSeek
+                    response = self._call_deepseek_api(prompt)
+                    
+                    # Parse the response
+                    result = self._parse_response(response)
+                    result["source"] = "deepseek_api"
+                    result["model"] = "deepseek-chat"
+                    
+                    print("✅ SUCCESS: Response received from DeepSeek API")
+                    print(f"📋 Response length: {len(result.get('raw_response', ''))}")
+                    
+                    # Send to LM Studio for training
+                    lm_studio_training_result = self._send_to_lm_studio_for_training(prompt, result)
+                    
+                    return result
+                except Exception as deepseek_e:
+                    print(f"❌ ERROR using DeepSeek API: {str(deepseek_e)}")
+                    # Continue to fallback if DeepSeek fails
+            
+            # Use fallback mode if no API keys are available or all APIs failed
+            print("\n=========================================")
+            print("⚠️ USING FALLBACK MODE - No valid API keys or all APIs failed")
+            print("=========================================")
+            
+            result = self._generate_fallback_response(structured_logs, basic_findings)
+            result["source"] = "fallback_simulated"
+            result["model"] = "simulated_response"
+            
+            return result
             
         except Exception as e:
-            # Try OpenAI if DeepSeek fails
-            if "deepseek" in str(e).lower() and self.openai_api_key and len(self.openai_api_key) > 10:
-                print(f"Error during DeepSeek analysis: {str(e)}")
-                print("Falling back to OpenAI API")
-                try:
-                    prompt = self._create_prompt(structured_logs, basic_findings)
-                    response = self._call_openai_api(prompt)
-                    return self._parse_response(response)
-                except Exception as openai_e:
-                    print(f"Error during OpenAI fallback: {str(openai_e)}")
-                    print("Falling back to simulated response")
-                    return self._generate_fallback_response(structured_logs, basic_findings)
+            print("\n=========================================")
+            print(f"❗ CRITICAL ERROR during analysis: {str(e)}")
+            print("⚠️ USING FALLBACK MODE as final resort")
+            print("=========================================")
+            
+            # Return a simulated fallback response as last resort
+            result = self._generate_fallback_response(structured_logs, basic_findings)
+            result["source"] = "fallback_after_error"
+            result["model"] = "simulated_response"
+            
+            return result
+            
+    def _send_to_lm_studio_for_training(self, original_prompt: str, api_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Send the API response to LM Studio for training purposes."""
+        print("\n=========================================")
+        print("🧠 SENDING TO LM STUDIO FOR TRAINING")
+        print("=========================================")
+        
+        try:
+            # Get the raw response from the API result
+            api_response = api_result.get("raw_response", "")
+            
+            if not api_response:
+                print("❌ ERROR: No raw response found in API result")
+                return {"success": False, "error": "No raw response to train on"}
+            
+            # Create a training prompt for LM Studio that requests detailed reasoning
+            training_prompt = f"""I'll show you a security analysis of log files. 
+Study this security analysis to improve your reasoning skills:
+
+{api_response[:2000]}
+
+Provide your DETAILED REASONING on what insights you gained from this security analysis.
+For each point, explain:
+1. WHAT specific security issue was identified
+2. WHERE in the logs it was found (specific line numbers)
+3. WHY this pattern is suspicious (technical details of the attack method)
+4. HOW it might impact the system (potential consequences)
+5. Any connections to other findings (attack patterns working together)
+
+Don't just summarize what was found - explain the deeper technical reasoning behind each detection.
+Include your step-by-step thought process using numbered points.
+
+#reasoning on
+"""
+            
+            print(f"📤 Sending to LM Studio... (prompt: {len(training_prompt)} chars)")
+            
+            # Create the LM Studio API payload
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": "deepseek-r1-distill-qwen-7b",  # Local model in LM Studio
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a security expert analyzing log files for vulnerabilities. ALWAYS provide DETAILED technical explanations and reasoning for each finding. Mention specific line numbers, explain the attack techniques in detail, and describe potential consequences. Focus on the 'why' and 'how' behind each detection, not just the 'what'. Use numbered points for your analysis, with each point containing multiple sentences of detailed technical explanation."
+                    },
+                    {
+                        "role": "user", 
+                        "content": training_prompt
+                    }
+                ],
+                "temperature": 0.7,  # Slightly higher temperature for more detailed responses
+                "max_tokens": 2000,  # Increased token limit for more detailed reasoning
+                "stream": False
+            }
+            
+            # Send to LM Studio
+            print(f"🔗 Connecting to LM Studio at: {self.lm_studio_url}")
+            response = requests.post(self.lm_studio_url, headers=headers, json=payload, timeout=60)
+            
+            # Process response
+            if response.status_code == 200:
+                lm_studio_json = response.json()
+                
+                # Extract the response content
+                if "choices" in lm_studio_json and len(lm_studio_json["choices"]) > 0:
+                    lm_studio_response = lm_studio_json["choices"][0]["message"]["content"]
+                    
+                    # Save for training data - use the self-contained save_training function
+                    try:
+                        # Define a local function to save training data
+                        def save_training_example(prompt, response, enhanced_response):
+                            """Save a training example to a jsonl file for immediate fine-tuning."""
+                            try:
+                                # Create a data directory if it doesn't exist
+                                data_dir = os.path.join(os.path.dirname(__file__), "training_data")
+                                os.makedirs(data_dir, exist_ok=True)
+                                
+                                # Define the training data file path
+                                training_file = os.path.join(data_dir, "reasoning_examples.jsonl")
+                                
+                                # Create the example
+                                example = {
+                                    "timestamp": datetime.now().isoformat(),
+                                    "prompt": prompt,
+                                    "response": response,
+                                    "enhanced_response": enhanced_response
+                                }
+                                
+                                # Append to the jsonl file
+                                with open(training_file, "a") as f:
+                                    f.write(json.dumps(example) + "\n")
+                                
+                                # Prepare the data for LM Studio in the correct format
+                                exports_dir = os.path.join(data_dir, "exports")
+                                os.makedirs(exports_dir, exist_ok=True)
+                                
+                                # Save as LM Studio compatible format
+                                export_path = os.path.join(exports_dir, "latest_training_data.json")
+                                return training_file
+                            except Exception as e:
+                                print(f"Error saving training example: {str(e)}")
+                                raise
+                        
+                        # Use the local function to save the data
+                        training_path = save_training_example(
+                            prompt=original_prompt,
+                            response=api_response,
+                            enhanced_response=lm_studio_response
+                        )
+                        
+                        print("✅ SUCCESS: LM Studio response received and saved for training")
+                        print(f"📝 LM Studio response: {len(lm_studio_response)} characters")
+                        print(f"📊 First 50 chars: {lm_studio_response[:50]}...")
+                        print(f"📁 Saved to: {training_path}")
+                        
+                        # Extract reasoning from the response
+                        reasoning_preview = lm_studio_response
+                        reasoning_bullets = []
+                        
+                        if "#reasoning on" in lm_studio_response.lower():
+                            reasoning_preview = lm_studio_response.lower().split("#reasoning on")[1].strip()
+                            # Try to extract numbered points from the reasoning section
+                            for line in reasoning_preview.split('\n'):
+                                if any(line.strip().startswith(f"{i}.") for i in range(1, 10)):
+                                    reasoning_bullets.append(line.strip())
+                        elif "1." in lm_studio_response and "2." in lm_studio_response:
+                            # If numbered points are found directly, extract them
+                            for line in lm_studio_response.split('\n'):
+                                if any(line.strip().startswith(f"{i}.") for i in range(1, 10)):
+                                    reasoning_bullets.append(line.strip())
+                                    
+                        # If we found reasoning bullets, use them; otherwise use the full text
+                        if reasoning_bullets:
+                            reasoning_preview = "\n".join(reasoning_bullets)
+                        
+                        # Display reasoning in a nice format in the logs - make it very visible
+                        print("\n")
+                        print("🧠" * 40)
+                        print("🧠                 LM STUDIO REASONING                  🧠")
+                        print("🧠" * 40)
+                        print("\n")
+                        
+                        if reasoning_bullets:
+                            for bullet in reasoning_bullets:
+                                print(f"🔹 {bullet}")
+                            print("\n")
+                        else:
+                            # Try to format the raw response as best we can
+                            print("🔸 No clear reasoning bullets found. Raw reasoning:")
+                            print("\n")
+                            
+                            # Try to identify paragraphs or points in the text
+                            raw_text = lm_studio_response[:1000]  # Show first 1000 chars
+                            paragraphs = [p.strip() for p in raw_text.split('\n\n') if p.strip()]
+                            
+                            if paragraphs:
+                                for i, para in enumerate(paragraphs[:5]):
+                                    if para.strip():
+                                        print(f"  {i+1}. {para.strip()[:200]}...")
+                                        print()
+                            else:
+                                # Fall back to line-by-line display
+                                preview_lines = raw_text.split('\n')
+                                for i, line in enumerate(preview_lines[:8]):  # Show first 8 lines
+                                    if line.strip():
+                                        print(f"  {i+1}. {line.strip()}")
+                            
+                            if len(raw_text) > 1000:
+                                print("  ...")
+                                
+                        print("\n")
+                        print("🧠" * 40)
+                        print("\n")
+                        
+                        # Add LM Studio info to API result for tracking
+                        api_result["lm_studio_training"] = {
+                            "success": True,
+                            "response_length": len(lm_studio_response),
+                            "model": "deepseek-r1-distill-qwen-7b",
+                            "training_saved": True,
+                            "training_path": training_path,
+                            "reasoning_preview": reasoning_preview[:300] + "..." if len(reasoning_preview) > 300 else reasoning_preview,
+                            "reasoning_bullets": reasoning_bullets,
+                            "lm_studio_full_response": lm_studio_response  # Include the complete response for the UI
+                        }
+                        
+                        return {"success": True, "response": lm_studio_response}
+                    except Exception as save_err:
+                        print(f"⚠️ WARNING: Could not save training data: {str(save_err)}")
+                        api_result["lm_studio_training"] = {
+                            "success": True,
+                            "response_length": len(lm_studio_response),
+                            "model": "deepseek-r1-distill-qwen-7b",
+                            "training_saved": False,
+                            "error": str(save_err)
+                        }
+                        return {"success": True, "error_saving": True}
+                else:
+                    print("❌ ERROR: Unexpected response format from LM Studio")
+                    api_result["lm_studio_training"] = {
+                        "success": False,
+                        "error": "Unexpected response format"
+                    }
+                    return {"success": False, "error": "Unexpected response format"}
             else:
-                print(f"Error during API analysis: {str(e)}")
-                print("Falling back to simulated response")
-                # Return a simulated fallback response
-                return self._generate_fallback_response(structured_logs, basic_findings)
+                error_text = response.text[:200]
+                print(f"❌ ERROR: LM Studio returned status code {response.status_code}")
+                print(f"Error details: {error_text}")
+                
+                api_result["lm_studio_training"] = {
+                    "success": False,
+                    "error": f"HTTP {response.status_code}: {error_text}"
+                }
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+                
+        except Exception as e:
+            print(f"❌ ERROR using LM Studio for training: {str(e)}")
+            
+            api_result["lm_studio_training"] = {
+                "success": False,
+                "error": str(e)
+            }
+            
+            return {"success": False, "error": str(e)}
     
     def _generate_fallback_response(self, structured_logs: Dict[str, Any], basic_findings: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate a simulated response for development purposes."""
@@ -528,6 +792,17 @@ Here's what I found in your log files:
         You are a security expert analyzing log files. Given the following log file content and basic findings, 
         please analyze for security vulnerabilities, attack patterns, and suspicious activities.
         
+        IMPORTANT: You must provide DETAILED justifications and reasoning for your analysis. Do not just state what was found, 
+        but explain WHY certain patterns are suspicious and HOW they relate to specific security threats.
+        
+        For example, instead of saying:
+        "SQL injection was detected in line 42."
+        
+        Say:
+        "A SQL injection attempt was detected in line 42, where the attacker used a malformed input containing single quotes 
+        and SQL syntax ('OR 1=1--) to try to bypass authentication. This specific pattern attempts to create a SQL condition 
+        that always evaluates to true, and the trailing comment markers (--) attempt to ignore the remainder of the SQL query."
+        
         Log file summary:
         - Total lines: {structured_logs["total_lines"]}
         - Analysis timestamp: {structured_logs["analysis_timestamp"]}
@@ -551,34 +826,42 @@ Here's what I found in your log files:
             if entry["line_number"] in relevant_line_numbers:
                 prompt += f"\nLine {entry['line_number']}: {entry['raw_content']}"
         
-        # Add specific instructions for DDoS detection if relevant patterns are found
-        ddos_patterns = [pattern for pattern in self.vulnerabilities["patterns"] if "DDOS" in pattern["id"] or "DOS" in pattern["id"]]
-        has_ddos_findings = any("DDOS" in finding["vulnerability_id"] or "DOS" in finding["vulnerability_id"] for finding in basic_findings)
+        # Check for DDoS patterns - simplified to avoid using self.vulnerabilities
+        has_ddos_findings = any("DDOS" in finding.get("vulnerability_id", "") or "DOS" in finding.get("vulnerability_id", "") for finding in basic_findings)
         
-        # Check if the raw log content contains patterns that suggest DDoS
+        # Simplified DDoS pattern check without relying on self.vulnerabilities
         ddos_content_check = False
         try:
             log_content_str = "\n".join([entry.get("raw_content", "") for entry in structured_logs.get("log_entries", [])])
-            # Use try/except inside the loop to handle individual pattern errors
-            ddos_content_check = False
-            for pattern in ddos_patterns:
-                try:
-                    if re.search(pattern["regex"], log_content_str, re.IGNORECASE):
-                        ddos_content_check = True
-                        break
-                except Exception as pattern_error:
-                    print(f"Error in pattern {pattern['id']}: {str(pattern_error)}")
-                    continue
+            
+            # Check for common DDoS patterns in the log content
+            ddos_keywords = [
+                "high request rate", "requests per second", "ddos", "denial of service",
+                "rate limit", "flood", "attack", "many connections", "too many requests"
+            ]
+            
+            for keyword in ddos_keywords:
+                if re.search(keyword, log_content_str, re.IGNORECASE):
+                    ddos_content_check = True
+                    break
+                    
         except Exception as e:
-            print(f"Error checking for DDoS patterns in structured logs: {str(e)}")
+            print(f"Error checking for DDoS patterns in logs: {str(e)}")
         
         prompt += """
         
         Please provide a detailed analysis including:
-        1. Confirmation or rejection of the basic findings with reasoning
+        1. Confirmation or rejection of the basic findings with DETAILED technical reasoning
         2. Additional vulnerabilities or security issues not captured by basic pattern matching
-        3. Assessment of potential impact and severity
-        4. Recommended actions
+        3. Assessment of potential impact and severity with specific consequences
+        4. Technical explanation of attack methodologies and techniques observed
+        5. Recommended actions with rationale
+        
+        VERY IMPORTANT: For each finding or observation:
+        - ALWAYS specify the exact line numbers where suspicious activity was found (e.g., "in lines 45-48")
+        - Explain WHY the observed pattern is suspicious by describing the technical aspects of the attack
+        - Connect related findings to show how they might be part of a coordinated attack
+        - Provide context about the attack technique and its potential real-world impact
         """
         
         if has_ddos_findings or ddos_content_check:
@@ -655,11 +938,11 @@ Here's what I found in your log files:
         }
         
         payload = {
-            "model": "gpt-4",  # Adjust model as needed
+            "model": "gpt-4o",  # Using the latest GPT-4o model
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are an expert security analyst specialized in identifying vulnerabilities from log files."
+                    "content": "You are an expert security analyst specialized in identifying vulnerabilities from log files. Provide detailed analysis in JSON format with reasoning steps, confirmed findings, new findings, and actionable recommendations."
                 },
                 {
                     "role": "user",
@@ -761,15 +1044,90 @@ def analyze_logs():
             }
         }
         
-        # Debug: Print if raw_response is in the analysis_results
-        if "raw_response" in analysis_results:
-            print(f"Raw response is included in results (length: {len(analysis_results['raw_response'])})")
-        else:
-            print("WARNING: raw_response is missing from analysis_results!")
+        # Add model information for the frontend
+        model_source = analysis_results.get("source", "unknown")
+        model_name = analysis_results.get("model", "unknown")
+        
+        # Add this to the response
+        response["model_info"] = {
+            "source": model_source,
+            "name": model_name,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Add the full response from each model for the UI to display
+        response["model_responses"] = {
+            "primary_model": {
+                "model_name": model_name,
+                "source": model_source,
+                "response_text": analysis_results.get("raw_response", "No response available")
+            }
+        }
+        
+        # Add LM Studio info and full response for the frontend to display
+        if "lm_studio_training" in analysis_results:
+            training = analysis_results["lm_studio_training"]
             
-        # Print the structure of the response for debugging
-        print(f"Response structure: {list(response.keys())}")
-        print(f"Deepseek analysis structure: {list(response['deepseek_analysis'].keys())}")
+            # Get the full LM Studio response if available
+            lm_studio_response = ""
+            
+            # Add to the response for the UI
+            response["lm_studio"] = {
+                "used_for_training": True,
+                "success": training.get("success", False),
+                "model": training.get("model", "deepseek-r1-distill-qwen-7b"),
+                "training_saved": training.get("training_saved", False)
+            }
+            
+            # Add full response from LM Studio to model_responses
+            if training.get("success", False):
+                # Try to get the full LM Studio response
+                if "lm_studio_full_response" in training:
+                    lm_studio_response = training["lm_studio_full_response"]
+                else:
+                    # If not available, use the reasoning preview
+                    lm_studio_response = training.get("reasoning_preview", "")
+                
+                # Add to model_responses for the UI to display directly
+                response["model_responses"]["lm_studio"] = {
+                    "model_name": training.get("model", "deepseek-r1-distill-qwen-7b"),
+                    "source": "lm_studio_local",
+                    "response_text": lm_studio_response,
+                    "response_length": training.get("response_length", 0)
+                }
+                
+                # Also keep the reasoning bullets for easy display
+                reasoning_bullets = training.get("reasoning_bullets", [])
+                if reasoning_bullets:
+                    response["lm_studio"]["reasoning_bullets"] = reasoning_bullets
+        else:
+            response["lm_studio"] = {
+                "used_for_training": False,
+                "note": "LM Studio was not used"
+            }
+        
+        # Print a clear summary of the results
+        print("\n=========================================")
+        print(f"📊 ANALYSIS COMPLETED")
+        print(f"🤖 Model: {model_name}")
+        print(f"🔍 Source: {model_source}")
+        print(f"🔢 Findings count: {len(basic_findings)}")
+        if "recommendations" in analysis_results:
+            print(f"💡 Recommendations: {len(analysis_results['recommendations'])}")
+            
+        # Add LM Studio summary if available
+        lm_studio_status = "❌ Not used"
+        if "lm_studio_training" in analysis_results:
+            training = analysis_results["lm_studio_training"]
+            if training.get("success", False):
+                lm_studio_status = f"✅ Success ({training.get('response_length', 0)} chars)"
+                if training.get("training_saved", False):
+                    lm_studio_status += ", saved for training"
+            else:
+                lm_studio_status = f"❌ Failed: {training.get('error', 'Unknown error')}"
+                
+        print(f"🧠 LM Studio: {lm_studio_status}")
+        print("=========================================\n")
         
         return jsonify(response)
     

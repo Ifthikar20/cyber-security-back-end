@@ -22,7 +22,7 @@
     },
     {
       "id": "XSS-002",
-      "regex": "javascript:.*?\\\\(|data:.*?base64|eval\\\\(|alert\\\\(",
+      "regex": "javascript:|data:.*?base64|eval|alert",
       "description": "Identifies XSS attempts using javascript:/data: protocols or malicious functions."
     },
     {

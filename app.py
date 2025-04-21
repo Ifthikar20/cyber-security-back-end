@@ -399,19 +399,54 @@ class DeepSeekReasoner:
                 return {"success": False, "error": "No raw response to train on"}
             
             # Create a training prompt for LM Studio that requests detailed reasoning
-            training_prompt = f"""<think>
-Analyze this single firewall log entry to determine the potential security threat it represents:
+            # Determine log type from content and create appropriate prompt
+            log_content = api_response[:5000]
+            
+            # Detect log type
+            if any(x in log_content.lower() for x in ["get /", "post /", "403 forbidden", "200 ok", "500 internal"]):
+                # Web server logs
+                training_prompt = f"""<think>
+Analyze these web server log entries to determine potential security threats:
 
-Apr 20 14:01:25 server01 kernel: IN=eth0 OUT= MAC=00:0c:29:aa:bb:cc SRC=198.51.100.88 DST=192.168.1.20 LEN=512 TOS=0x00 PREC=0x00 TTL=118 ID=44444 PROTO=UDP SPT=53 DPT=12345 LEN=492
+{log_content[:2000]}
 
-Here is the initial analysis from a security model:
+Your task is to provide detailed reasoning about why these log entries indicate a security threat or attack pattern.
+Focus on analyzing the actual components in the log entries (IPs, URLs, methods, response codes, etc.) and explain their significance.
+</think>
 
+Now, provide your DETAILED REASONING on why these log entries indicate security threats.
+Focus EXCLUSIVELY on EXPLAINING WHY these patterns are suspicious and significant.
 
-{api_response[:2000]}
+Your reasoning should follow this format:
+#reasoning on
 
-Your task is to provide detailed reasoning about why this specific log entry indicates a DNS amplification attack. DO NOT make up additional log entries that don't exist. This is a SINGLE log line, so don't reference multiple lines or line numbers in your analysis.
+IP 203.0.113.90 appears repeatedly, suggesting a single source for multiple suspicious requests.
 
-Focus on analyzing the ACTUAL COMPONENTS in this specific log entry (SRC, DST, SPT, DPT, LEN, TTL, etc.) and explain their significance in identifying this attack pattern.
+The progression from GET to POST requests shows a systematic probing pattern.
+
+Accessing /hidden/debug-panel shows the attacker knew about non-public endpoints.
+
+The dump=true parameter suggests an attempt to extract sensitive debug information.
+
+Requesting and downloading config.env directly targets configuration files with potential secrets.
+
+The 403 Forbidden response to /admin shows attempts to access restricted areas.
+
+The 500 Internal Server Error from deleting a user suggests a damaging operation.
+
+Using curl as the user agent rather than a browser indicates automated attack tools.
+
+IMPORTANT: Return ONLY the bullet points as plain text, with each point on a new line. Start with "#reasoning on" and then provide concise analysis points. Don't include any other text or explanation besides the actual reasoning points.
+"""
+            else:
+                # Firewall/network logs
+                training_prompt = f"""<think>
+Analyze this network/firewall log entry to determine the potential security threat:
+
+{log_content[:2000]}
+
+Your task is to provide detailed reasoning about why these log entries indicate a security threat or attack pattern.
+Focus on analyzing the actual components in the log entries (SRC, DST, SPT, DPT, LEN, TTL, etc.) and explain their significance.
 </think>
 
 Now, provide your DETAILED REASONING on why this log entry indicates a security threat. 
@@ -420,23 +455,21 @@ Focus EXCLUSIVELY on EXPLAINING WHY this pattern is suspicious and significant.
 Your reasoning should follow this format:
 #reasoning on
 
-SRC=198.51.100.88 is a public IP, suggesting an external source.
+SRC shows an external IP address, suggesting potential spoofing or external traffic.
 
-SPT=53 means the source port is 53 — a standard DNS response port.
+SPT indicates the source port which may reveal attack methods.
 
-DPT=12345 is a high-numbered, non-standard destination port, indicating it's not a typical DNS client query.
+DPT shows the destination port, often revealing the attack target service.
 
-LEN=512 is unusually large for a UDP packet and suggests an amplified DNS response.
+LEN (packet length) can indicate abnormal payload sizes typical in amplification attacks.
 
-TTL=118 indicates the packet came from outside the local network (many hops away).
+TTL values can reveal if packets have traversed unusual network paths.
 
-No corresponding request in prior logs from 192.168.1.20 suggests this was unsolicited.
+Protocol and flag combinations may indicate scanning or reconnaissance activities.
 
-The pattern matches a DNS amplification attack, where a large DNS response is sent to a spoofed victim IP (here, 192.168.1.20).
+Timing patterns between log entries can reveal coordinated attack attempts.
 
-This packet is likely part of a UDP DDoS attempt exploiting open resolvers to amplify traffic.
-
-IMPORTANT: Start your detailed reasoning with "#reasoning on" and then provide multiple points of analysis, with each on a new line. DO NOT reference line numbers or make up additional log entries - focus ONLY on the single log entry provided.
+IMPORTANT: Return ONLY the bullet points as plain text, with each point on a new line. Start with "#reasoning on" and then provide concise analysis points. Don't include any other text or explanation besides the actual reasoning points.
 """
             
             print(f"📤 Sending to LM Studio... (prompt: {len(training_prompt)} chars)")
@@ -491,28 +524,14 @@ Your goal is to deliver a comprehensive, technical breakdown of why this log ent
                 is_available = False
                 
             if not is_available:
-                print("⚠️ LM Studio is not available at the configured URL. Using fallback demo reasoning...")
-                # Use fallback demo reasoning when LM Studio isn't available
-                demo_bullets = [
-                    "🔹 [sctp=0x00] indicates [standard protocol for simple communication protocol (scp)] because [it means that the packet is using scp, which is a simple and insecure protocol used in some brute force attacks.]",
-                    "🔹 [dst=192.168.1.20] indicates [private internal ip address of the target machine] because [it suggests that the attacker is attempting to reach an internal server without proper authentication, possibly through a brute force attack or misconfiguration.]",
-                    "🔹 [prec=0x00] indicates [zero precision value] because [it means that no attempt was made to guess the password based on user input; instead, it might be an automated login attempt with preset credentials.]",
-                    "🔹 [spt=53] indicates [standard dns response port (53)] because [it's a normal port used for responding to dns queries, but in this context, it suggests that the attacker is trying to send data through dns.]",
-                    "🔹 [dpt=12345] indicates [high-numbered port not typically used by clients or servers] because [it could be an attempt to bypass nat (network address translation) by using a non-standard port for communication with a private ip address.]",
-                    "🔹 [len=512] indicates [very large packet length compared to typical dns queries] because [a standard dns query is usually 100 bytes, but this is much larger, possibly indicating an attempt to flood the target with data (ddos attack) or send malicious data.]",
-                    "🔹 [ttl=118] indicates [the number of hops before the packet was delivered] because [a high ttl value suggests that the packet traveled through multiple networks, which could indicate an external origin for the attack.]",
-                    "🔹 [no corresponding request from 192.168.1.20] indicates [unsolicited attempt to send data to a private ip address] because [it means that there's no matching query being sent from within the local network to 192.168.1.20, making this attack more suspicious.]",
-                    "🔹 this log entry suggests a [brute force attack with dns amplification]. the attacker is likely trying to gain access to an internal server by sending brute force login attempts (spt=53) and possibly using the dns response port (dpt=12345) to bypass nat or send large payloads."
-                ]
+                print("⚠️ LM Studio is not available at the configured URL.")
                 
                 api_result["lm_studio_training"] = {
-                    "success": True,
-                    "demo_reasoning": demo_bullets,
-                    "reasoning_bullets": demo_bullets,
-                    "reasoning_html": "<div class='lm-studio-reasoning'><h3>LM Studio Reasoning:</h3>" + "".join([f"<p>{bullet}</p>" for bullet in demo_bullets]) + "</div>",
-                    "using_fallback": True
+                    "success": False,
+                    "error": "Unable to connect to LM Studio service",
+                    "reasoning_bullets": []  # Empty array - no fallback reasoning
                 }
-                return {"success": True, "error": "LM Studio not available - using fallback reasoning"}
+                return {"success": False, "error": "LM Studio not available - connection failed"}
                 
             # Only proceed if LM Studio is available
             response = requests.post(self.lm_studio_url, headers=headers, json=payload, timeout=120)  # Increased timeout
@@ -545,8 +564,8 @@ Your goal is to deliver a comprehensive, technical breakdown of why this log ent
                             for line in lines:
                                 line = line.strip()
                                 if line and len(line) > 5:  # Ensure it's a substantive line
-                                    # Format as a bullet point
-                                    reasoning_bullets.append(line)
+                                    # Format as a bullet point with diamond emoji
+                                    reasoning_bullets.append(f"🔹 {line}")
                         else:
                             # If not found, add a warning
                             validated_response = lm_studio_response + "\n\n[WARNING: Response does not include the expected #reasoning on tag. Format may not match requirements.]"
@@ -557,7 +576,7 @@ Your goal is to deliver a comprehensive, technical breakdown of why this log ent
                             for line in lines:
                                 line = line.strip()
                                 if line and len(line) > 10 and not line.startswith("#") and not line.startswith("["):
-                                    reasoning_bullets.append(line)
+                                    reasoning_bullets.append(f"🔹 {line}")
                         
                         # No need to save training examples anymore
                         training_path = "N/A" # We don't save training data
@@ -621,11 +640,8 @@ Your goal is to deliver a comprehensive, technical breakdown of why this log ent
                                 "this log entry suggests a [brute force attack with dns amplification]. the attacker is likely trying to gain access to an internal server by sending brute force login attempts (spt=53) and possibly using the dns response port (dpt=12345) to bypass nat or send large payloads."
                             ]
                         
-                        # Format reasoning bullets for the UI - using the 🔹 emoji as requested
-                        formatted_reasoning_bullets = []
-                        for bullet in reasoning_bullets:
-                            # Format with the diamond emoji as requested
-                            formatted_reasoning_bullets.append(f"🔹 {bullet}")
+                        # Reasoning bullets are already formatted with 🔹 emoji
+                        formatted_reasoning_bullets = reasoning_bullets
                         
                         reasoning_html = "<div class='lm-studio-reasoning'>"
                         if formatted_reasoning_bullets:
@@ -912,6 +928,9 @@ Here's what I found in your log files:
         Selected log entries for context:
         """
         
+        # Store the original prompt to help with fallback reasoning
+        self.original_prompt = prompt
+        
         # Add a selection of log entries, focusing on entries with findings
         relevant_line_numbers = set(finding["line_number"] for finding in basic_findings)
         
@@ -1180,31 +1199,19 @@ def analyze_logs():
             }
             
             # Add full response from LM Studio to model_responses
-            # Always show reasoning, even if LM Studio failed
-            if training.get("success", False) and "lm_studio_full_response" in training:
-                # Use LM Studio response if available and successful
-                lm_studio_response = training["lm_studio_full_response"]
-            elif training.get("reasoning_bullets", []):
-                # If reasoning bullets are available, use them
-                lm_studio_response = "\n".join(training.get("reasoning_bullets", []))
-            else:
-                # If LM Studio failed or didn't provide reasoning, use hardcoded demo reasoning for the UI
-                demo_bullets = training.get("demo_reasoning", [
-                    "🔹 [sctp=0x00] indicates [standard protocol for simple communication protocol (scp)] because [it means that the packet is using scp, which is a simple and insecure protocol used in some brute force attacks.]",
-                    "🔹 [dst=192.168.1.20] indicates [private internal ip address of the target machine] because [it suggests that the attacker is attempting to reach an internal server without proper authentication, possibly through a brute force attack or misconfiguration.]",
-                    "🔹 [prec=0x00] indicates [zero precision value] because [it means that no attempt was made to guess the password based on user input; instead, it might be an automated login attempt with preset credentials.]",
-                    "🔹 [spt=53] indicates [standard dns response port (53)] because [it's a normal port used for responding to dns queries, but in this context, it suggests that the attacker is trying to send data through dns.]",
-                    "🔹 [dpt=12345] indicates [high-numbered port not typically used by clients or servers] because [it could be an attempt to bypass nat (network address translation) by using a non-standard port for communication with a private ip address.]",
-                    "🔹 [len=512] indicates [very large packet length compared to typical dns queries] because [a standard dns query is usually 100 bytes, but this is much larger, possibly indicating an attempt to flood the target with data (ddos attack) or send malicious data.]",
-                    "🔹 [ttl=118] indicates [the number of hops before the packet was delivered] because [a high ttl value suggests that the packet traveled through multiple networks, which could indicate an external origin for the attack.]",
-                    "🔹 [no corresponding request from 192.168.1.20] indicates [unsolicited attempt to send data to a private ip address] because [it means that there's no matching query being sent from within the local network to 192.168.1.20, making this attack more suspicious.]",
-                    "🔹 this log entry suggests a [brute force attack with dns amplification]. the attacker is likely trying to gain access to an internal server by sending brute force login attempts (spt=53) and possibly using the dns response port (dpt=12345) to bypass nat or send large payloads."
-                ])
-                lm_studio_response = "\n".join(demo_bullets)
-                
-                # Add the demo content to the training object for easier access later
-                if "demo_reasoning" not in training:
-                    training["demo_reasoning"] = demo_bullets
+            # Only show reasoning if LM Studio was successful
+            if training.get("success", False):
+                if "lm_studio_full_response" in training:
+                    # Use LM Studio response if available
+                    lm_studio_response = training["lm_studio_full_response"]
+                elif training.get("reasoning_bullets", []):
+                    # If reasoning bullets are available, use them
+                    lm_studio_response = "\n".join(training.get("reasoning_bullets", []))
+                else:
+                    # No demo bullets needed - just use empty arrays
+                    demo_bullets = []
+                    lm_studio_response = ""
+                    training["reasoning_bullets"] = []
                 
                 # Add to model_responses for the UI to display directly
                 response["model_responses"]["lm_studio"] = {
@@ -1217,11 +1224,15 @@ def analyze_logs():
                 
                 # Add formatted reasoning bullets and HTML for UI display
                 formatted_bullets = training.get("reasoning_bullets", [])
-                reasoning_html = training.get("reasoning_html", "")
                 if formatted_bullets:
                     response["lm_studio"]["reasoning_bullets"] = formatted_bullets
-                if reasoning_html:
-                    response["lm_studio"]["reasoning_html"] = reasoning_html
+                    
+                    # Generate HTML if not already present
+                    if not training.get("reasoning_html"):
+                        reasoning_html = "<div class='lm-studio-reasoning'><h3>LM Studio Reasoning:</h3>" + "".join([f"<p>{bullet}</p>" for bullet in formatted_bullets]) + "</div>"
+                        response["lm_studio"]["reasoning_html"] = reasoning_html
+                    else:
+                        response["lm_studio"]["reasoning_html"] = training.get("reasoning_html")
         else:
             response["lm_studio"] = {
                 "used_for_training": False,
@@ -1242,16 +1253,13 @@ def analyze_logs():
         if "lm_studio_training" in analysis_results:
             training = analysis_results["lm_studio_training"]
             if training.get("success", False):
-                if training.get("using_fallback", False):
-                    lm_studio_status = f"✅ Using fallback demo reasoning (LM Studio not available)"
-                else:
-                    lm_studio_status = f"✅ Success ({training.get('response_length', 0)} chars)"
-                    if training.get("training_saved", False):
-                        lm_studio_status += ", saved for training"
+                lm_studio_status = f"✅ Success ({training.get('response_length', 0)} chars)"
+                if training.get("training_saved", False):
+                    lm_studio_status += ", saved for training"
             else:
                 error_msg = training.get('error', 'Unknown error')
                 if "not available" in error_msg or "connection failed" in error_msg:
-                    lm_studio_status = f"⚠️ Using fallback: LM Studio not available"
+                    lm_studio_status = f"⚠️ LM Studio not available"
                 else:
                     lm_studio_status = f"❌ Failed: {error_msg}"
                 

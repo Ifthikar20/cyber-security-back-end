@@ -1,6 +1,11 @@
 {
   "patterns": [
     {
+      "id": "DNS-AMPLIFICATION-001", 
+      "regex": "IN=.* OUT= .* SRC=.* DST=.* .* PROTO=UDP SPT=53 DPT=\\d+ LEN=(\\d{3,})",
+      "description": "Detects DNS amplification attacks with large UDP packets from DNS port 53 to non-standard ports."
+    },
+    {
       "id": "SQL-INJECTION-001",
       "regex": "SQL syntax.*?error|incorrect syntax near|syntax error at or near",
       "description": "Detects SQL injection attempts triggering database syntax errors."

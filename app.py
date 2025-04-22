@@ -402,74 +402,22 @@ class DeepSeekReasoner:
             # Determine log type from content and create appropriate prompt
             log_content = api_response[:5000]
             
-            # Detect log type
-            if any(x in log_content.lower() for x in ["get /", "post /", "403 forbidden", "200 ok", "500 internal"]):
-                # Web server logs
-                training_prompt = f"""<think>
-Analyze these web server log entries to determine potential security threats:
+            # Just use the API response as context and request EXACTLY the specified format
+            training_prompt = f"""Here is an analysis of log entries:
 
-{log_content[:2000]}
+{api_response[:2000]}
 
-Your task is to provide detailed reasoning about why these log entries indicate a security threat or attack pattern.
-Focus on analyzing the actual components in the log entries (IPs, URLs, methods, response codes, etc.) and explain their significance.
-</think>
+Respond ONLY with a JSON object in this EXACT format:
 
-Now, provide your DETAILED REASONING on why these log entries indicate security threats.
-Focus EXCLUSIVELY on EXPLAINING WHY these patterns are suspicious and significant.
+{{
+  "reasoning": [
+    "R":"Reason 1 about security implications",
+    "R":"Reason 2 about security implications",
+    "R":"Reason 3 about security implications"
+  ]
+}}
 
-Your reasoning should follow this format:
-#reasoning on
-
-IP 203.0.113.90 appears repeatedly, suggesting a single source for multiple suspicious requests.
-
-The progression from GET to POST requests shows a systematic probing pattern.
-
-Accessing /hidden/debug-panel shows the attacker knew about non-public endpoints.
-
-The dump=true parameter suggests an attempt to extract sensitive debug information.
-
-Requesting and downloading config.env directly targets configuration files with potential secrets.
-
-The 403 Forbidden response to /admin shows attempts to access restricted areas.
-
-The 500 Internal Server Error from deleting a user suggests a damaging operation.
-
-Using curl as the user agent rather than a browser indicates automated attack tools.
-
-IMPORTANT: Return ONLY the bullet points as plain text, with each point on a new line. Start with "#reasoning on" and then provide concise analysis points. Don't include any other text or explanation besides the actual reasoning points.
-"""
-            else:
-                # Firewall/network logs
-                training_prompt = f"""<think>
-Analyze this network/firewall log entry to determine the potential security threat:
-
-{log_content[:2000]}
-
-Your task is to provide detailed reasoning about why these log entries indicate a security threat or attack pattern.
-Focus on analyzing the actual components in the log entries (SRC, DST, SPT, DPT, LEN, TTL, etc.) and explain their significance.
-</think>
-
-Now, provide your DETAILED REASONING on why this log entry indicates a security threat. 
-Focus EXCLUSIVELY on EXPLAINING WHY this pattern is suspicious and significant.
-
-Your reasoning should follow this format:
-#reasoning on
-
-SRC shows an external IP address, suggesting potential spoofing or external traffic.
-
-SPT indicates the source port which may reveal attack methods.
-
-DPT shows the destination port, often revealing the attack target service.
-
-LEN (packet length) can indicate abnormal payload sizes typical in amplification attacks.
-
-TTL values can reveal if packets have traversed unusual network paths.
-
-Protocol and flag combinations may indicate scanning or reconnaissance activities.
-
-Timing patterns between log entries can reveal coordinated attack attempts.
-
-IMPORTANT: Return ONLY the bullet points as plain text, with each point on a new line. Start with "#reasoning on" and then provide concise analysis points. Don't include any other text or explanation besides the actual reasoning points.
+DO NOT include any other text, explanation, or thinking. Return ONLY the JSON object.
 """
             
             print(f"📤 Sending to LM Studio... (prompt: {len(training_prompt)} chars)")
@@ -484,25 +432,24 @@ IMPORTANT: Return ONLY the bullet points as plain text, with each point on a new
                 "messages": [
                     {
                         "role": "system",
-                        "content": """You are a senior security expert analyzing firewall log entries. Your task is to provide detailed, insightful reasoning about why specific patterns in the logs indicate security threats.
+                        "content": """You are a security analysis API that ONLY returns valid JSON.
 
-For this firewall log entry analysis:
+You MUST:
+1. Return ONLY a JSON object in the exact format requested
+2. Include NO text, explanation, or conversation outside the JSON
+3. NEVER add any prefixes, suffixes, or explanation
+4. Structure each reasoning point with "R:" prefix exactly as shown
+5. Keep responses strictly in the required JSON schema
 
-1. Focus EXCLUSIVELY on explaining WHY each component of the log entry is suspicious or indicates an attack
-2. Start your explanation with "#reasoning on" followed by individual points of analysis
-3. For each component (SRC, DST, PROTO, SPT, DPT, LEN, TTL, etc.), explain its significance in identifying the attack
-4. Each point should be concise but informative, focusing on the technical details that reveal the attack
-5. Present each point on a new line
-6. Do NOT suggest mitigations - focus purely on analysis and justification of why this is a threat
-
-Example format:
-#reasoning on
-[Component 1] indicates [technical significance] because [detailed explanation]
-[Component 2] indicates [technical significance] because [detailed explanation]
-[Pattern observation] suggests [attack methodology] which is significant because [technical explanation]
-...
-
-Your goal is to deliver a comprehensive, technical breakdown of why this log entry reveals a specific type of attack."""
+Example of ENTIRE response:
+{
+  "reasoning": [
+    "R":"Security implication 1",
+    "R":"Security implication 2",
+    "R":"Security implication 3"
+  ]
+}
+"""
                     },
                     {
                         "role": "user", 
@@ -551,31 +498,71 @@ Your goal is to deliver a comprehensive, technical breakdown of why this log ent
                         # Just use the response as is - we're not dealing with line numbers
                         validated_response = lm_studio_response
                         
-                        # Process the response to extract reasoning and convert to bullets
+                        # Process the response to extract reasoning from JSON
                         reasoning_bullets = []
-                        if "#reasoning on" in lm_studio_response.lower():
-                            # Extract just the reasoning section
-                            reasoning_section = lm_studio_response.lower().split("#reasoning on")[1].strip()
-                            validated_response = "#reasoning on\n" + reasoning_section
-                            print("✅ Found #reasoning on tag in response")
+                        
+                        try:
+                            # First, remove any <think>...</think> blocks from the response
+                            import json
+                            import re
                             
-                            # Convert the reasoning points into bullets
-                            lines = reasoning_section.split("\n")
-                            for line in lines:
-                                line = line.strip()
-                                if line and len(line) > 5:  # Ensure it's a substantive line
-                                    # Format as a bullet point with diamond emoji
-                                    reasoning_bullets.append(f"🔹 {line}")
-                        else:
-                            # If not found, add a warning
-                            validated_response = lm_studio_response + "\n\n[WARNING: Response does not include the expected #reasoning on tag. Format may not match requirements.]"
-                            print("⚠️ WARNING: LM Studio response does not include #reasoning on tag")
+                            # Remove thinking blocks
+                            cleaned_response = lm_studio_response
+                            think_pattern = r'<think>[\s\S]*?<\/think>'
+                            cleaned_response = re.sub(think_pattern, '', cleaned_response).strip()
                             
-                            # Try to extract any relevant content as bullets anyway
+                            # Look for JSON specifically
+                            json_pattern = r'```json\s*([\s\S]*?)```'
+                            code_blocks = re.findall(json_pattern, cleaned_response)
+                            
+                            if code_blocks:
+                                # Extract the JSON from code blocks
+                                json_text = code_blocks[0].strip()
+                                print(f"✅ Found JSON in code block: {json_text[:50]}...")
+                            else:
+                                # Try to find a raw JSON object
+                                json_pattern = r'({[\s\S]*})'
+                                json_match = re.search(json_pattern, cleaned_response)
+                                
+                                if json_match:
+                                    json_text = json_match.group(1).strip()
+                                    print(f"✅ Found JSON object: {json_text[:50]}...")
+                                else:
+                                    json_text = cleaned_response
+                                    print(f"⚠️ No JSON found, using cleaned response: {json_text[:50]}...")
+                                
+                            # Try to parse as JSON
+                            try:
+                                json_response = json.loads(json_text)
+                                
+                                # Validate that it has the correct format
+                                if "reasoning" in json_response and isinstance(json_response["reasoning"], list):
+                                    # Extract reasoning points and format them
+                                    for reason in json_response["reasoning"]:
+                                        if isinstance(reason, str) and reason.startswith("R:"):
+                                            formatted_reason = f"🔹 {reason[2:]}"  # Remove R: and add emoji
+                                            reasoning_bullets.append(formatted_reason)
+                                    
+                                    # Return just the clean JSON
+                                    validated_response = json.dumps(json_response, indent=2)
+                                    
+                                    print(f"✅ Extracted {len(reasoning_bullets)} valid reasoning points")
+                                else:
+                                    print("⚠️ WARNING: JSON doesn't contain reasoning array")
+                                    validated_response = json_text
+                            except json.JSONDecodeError:
+                                print("⚠️ WARNING: Not valid JSON")
+                                validated_response = json_text
+                        except json.JSONDecodeError:
+                            # Fallback if not valid JSON
+                            print("⚠️ WARNING: LM Studio response is not valid JSON")
+                            validated_response = lm_studio_response
+                            
+                            # Try to extract any relevant content as bullets
                             lines = lm_studio_response.split("\n")
                             for line in lines:
                                 line = line.strip()
-                                if line and len(line) > 10 and not line.startswith("#") and not line.startswith("["):
+                                if line and len(line) > 10 and not line.startswith("#") and not line.startswith("[") and not line.startswith("{"):
                                     reasoning_bullets.append(f"🔹 {line}")
                         
                         # No need to save training examples anymore
@@ -629,15 +616,8 @@ Your goal is to deliver a comprehensive, technical breakdown of why this log ent
                         # For demo purposes, use the exact example reasoning provided if no reasoning bullets
                         if not reasoning_bullets:
                             reasoning_bullets = [
-                                "[sctp=0x00] indicates [standard protocol for simple communication protocol (scp)] because [it means that the packet is using scp, which is a simple and insecure protocol used in some brute force attacks.]",
-                                "[dst=192.168.1.20] indicates [private internal ip address of the target machine] because [it suggests that the attacker is attempting to reach an internal server without proper authentication, possibly through a brute force attack or misconfiguration.]",
-                                "[prec=0x00] indicates [zero precision value] because [it means that no attempt was made to guess the password based on user input; instead, it might be an automated login attempt with preset credentials.]",
-                                "[spt=53] indicates [standard dns response port (53)] because [it's a normal port used for responding to dns queries, but in this context, it suggests that the attacker is trying to send data through dns.]",
-                                "[dpt=12345] indicates [high-numbered port not typically used by clients or servers] because [it could be an attempt to bypass nat (network address translation) by using a non-standard port for communication with a private ip address.]",
-                                "[len=512] indicates [very large packet length compared to typical dns queries] because [a standard dns query is usually 100 bytes, but this is much larger, possibly indicating an attempt to flood the target with data (ddos attack) or send malicious data.]",
-                                "[ttl=118] indicates [the number of hops before the packet was delivered] because [a high ttl value suggests that the packet traveled through multiple networks, which could indicate an external origin for the attack.]",
-                                "[no corresponding request from 192.168.1.20] indicates [unsolicited attempt to send data to a private ip address] because [it means that there's no matching query being sent from within the local network to 192.168.1.20, making this attack more suspicious.]",
-                                "this log entry suggests a [brute force attack with dns amplification]. the attacker is likely trying to gain access to an internal server by sending brute force login attempts (spt=53) and possibly using the dns response port (dpt=12345) to bypass nat or send large payloads."
+                                "Model unable to reason",
+
                             ]
                         
                         # Reasoning bullets are already formatted with 🔹 emoji

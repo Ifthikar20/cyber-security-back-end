@@ -633,7 +633,7 @@ Example of ENTIRE response:
                         # Display reasoning in a nice format in the logs - make it very visible
                         print("\n")
                         print("🧠" * 40)
-                        print("🧠                 LM STUDIO REASONING                  🧠")
+                        print("🧠                 Local LLM is thinking                  🧠")
                         print("🧠" * 40)
                         print("\n")
                         

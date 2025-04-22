@@ -16,7 +16,7 @@
       "description": "Detects HTTP/2 Rapid Reset attacks where many stream reset frames are sent."
     },
     {
-      "id": "TCP-ACK-FLOOD-001", 
+      "id": "TCP-ACK-FLOOD-001",
       "regex": "ACK flood|multiple ACK packets|unexpected ACK|PROTO=TCP.*ACK|excessive ACK packets|ACK.*without data",
       "description": "Identifies TCP ACK flood attacks where large numbers of ACK packets are sent."
     },
@@ -271,6 +271,161 @@
       "description": "Detects DDoS attacks using the QUIC protocol."
     },
     {
+      "id": "BGP-HIJACK-001",
+      "regex": "BGP route hijacking|unauthorized AS announcement|suspicious BGP update|route hijack detected|unexpected AS path change",
+      "description": "Detects potential BGP route hijacking attempts or suspicious BGP routing announcements."
+    },
+    {
+      "id": "IPID-SEQUENCE-001",
+      "regex": "IP-ID sequence prediction|predictable IPID|sequential IP ID|IPID scanning|IP identification field scan",
+      "description": "Detects attempts to predict IP ID sequence numbers which can be used for reconnaissance or side-channel attacks."
+    },
+    {
+      "id": "IP-FRAG-OVERLAP-001",
+      "regex": "overlapping IP fragments|IP fragment overlap|inconsistent fragment reassembly|teardrop attack signature|fragment reassembly exploit",
+      "description": "Identifies malicious IP fragmentation with overlapping offsets that can cause denial of service or bypass security controls."
+    },
+    {
+      "id": "ARP-SPOOF-001",
+      "regex": "ARP cache poisoning|duplicate ARP reply|conflicting MAC address|unauthorized ARP broadcast|MAC-IP binding change",
+      "description": "Detects ARP spoofing attacks that redirect traffic through an attacker's system."
+    },
+    {
+      "id": "TCP-WINDOW-SCALE-001",
+      "regex": "invalid TCP window scale|TCP window scale overflow|window scale option abuse|excessive TCP window scaling|malformed window scale option",
+      "description": "Identifies attacks exploiting TCP window scaling options to cause connection failures or evade detection."
+    },
+    {
+      "id": "IP-SOURCE-ROUTE-001",
+      "regex": "source routing detected|IP loose source routing|IP strict source routing|source route option enabled|route recording enabled",
+      "description": "Detects use of IP source routing options which can be used to bypass network security controls."
+    },
+    {
+      "id": "ICMP-ROUTER-ADV-001",
+      "regex": "unauthorized router advertisement|ICMP router advertisement|rogue router advertisement|ICMP type 9|router redirect abuse",
+      "description": "Identifies unauthorized ICMP router advertisements that could lead to traffic redirection attacks."
+    },
+    {
+      "id": "IP-TTL-ANOMALY-001",
+      "regex": "TTL anomaly|inconsistent TTL values|TTL manipulation|unexpected TTL change|TTL expiry attack",
+      "description": "Detects manipulation of IP TTL values which may indicate network reconnaissance or evasion attempts."
+    },
+    {
+      "id": "TCP-TIMESTAMP-ABUSE-001",
+      "regex": "TCP timestamp manipulation|invalid TCP timestamp|timestamp replay|abnormal timestamp delta|timestamp inference attack",
+      "description": "Identifies manipulation of TCP timestamps which can be used for fingerprinting or connection hijacking."
+    },
+    {
+      "id": "UNROUTABLE-IP-ACCESS-001",
+      "regex": "SRC=(0\\.0\\.0\\.0|127\\.\\d+\\.\\d+\\.\\d+|169\\.254\\.\\d+\\.\\d+|224\\.\\d+\\.\\d+\\.\\d+|240\\.\\d+\\.\\d+\\.\\d+)(?!.*DST=(0\\.0\\.0\\.0|127\\.\\d+\\.\\d+\\.\\d+|169\\.254\\.\\d+\\.\\d+))",
+      "description": "Detects traffic from reserved or unroutable IP addresses (0.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16, 224.0.0.0/4, 240.0.0.0/4) which may indicate IP spoofing."
+    },
+    {
+      "id": "BROADCAST-IP-SOURCE-001",
+      "regex": "SRC=(255\\.255\\.255\\.255|\\d+\\.\\d+\\.\\d+\\.255)",
+      "description": "Identifies traffic with broadcast addresses as source, which is typically invalid and indicates spoofing attempts."
+    },
+    {
+      "id": "MULTICAST-AS-SOURCE-001",
+      "regex": "SRC=(224\\.\\d+\\.\\d+\\.\\d+|239\\.\\d+\\.\\d+\\.\\d+)",
+      "description": "Detects packets with multicast addresses (224.0.0.0/4) as source, which violates networking standards and indicates malicious activity."
+    },
+    {
+      "id": "NULL-IP-TRAFFIC-001",
+      "regex": "SRC=0\\.0\\.0\\.0|DST=0\\.0\\.0\\.0",
+      "description": "Detects traffic using 0.0.0.0 address as source or destination, which may indicate reconnaissance or malformed packets."
+    },
+    {
+      "id": "LOOPBACK-EXTERNAL-TRAFFIC-001",
+      "regex": "SRC=127\\.\\d+\\.\\d+\\.\\d+.*IN=(?!lo)|DST=127\\.\\d+\\.\\d+\\.\\d+.*OUT=(?!lo)",
+      "description": "Identifies loopback address traffic (127.0.0.0/8) on non-loopback interfaces, which violates routing principles and may indicate spoofing."
+    },
+    {
+      "id": "IP-BOGON-TRAFFIC-001",
+      "regex": "SRC=(192\\.0\\.0\\.\\d+|192\\.0\\.2\\.\\d+|198\\.51\\.100\\.\\d+|203\\.0\\.113\\.\\d+|100\\.64\\.\\d+\\.\\d+)|DST=(192\\.0\\.0\\.\\d+|192\\.0\\.2\\.\\d+|198\\.51\\.100\\.\\d+|203\\.0\\.113\\.\\d+|100\\.64\\.\\d+\\.\\d+)",
+      "description": "Detects traffic involving bogon addresses (TEST-NET-1, TEST-NET-2, TEST-NET-3, shared address space), which should not appear in public Internet routing."
+    },
+    {
+      "id": "IP-CLASS-E-TRAFFIC-001",
+      "regex": "SRC=(24\\d|25[0-5])\\.\\d+\\.\\d+\\.\\d+|DST=(24\\d|25[0-5])\\.\\d+\\.\\d+\\.\\d+",
+      "description": "Identifies traffic using Class E reserved address space (240.0.0.0/4), which is not allocated for public use and may indicate malicious activity."
+    },
+    {
+      "id": "IP-FULL-ZEROS-SUBNET-001",
+      "regex": "SRC=\\d+\\.\\d+\\.\\d+\\.0(?!/32)|DST=\\d+\\.\\d+\\.\\d+\\.0(?!/32)",
+      "description": "Detects traffic using all-zeros host portion in subnets, which typically represents the network address and is invalid for host addressing."
+    },
+    {
+      "id": "IP-FULL-ONES-SUBNET-001",
+      "regex": "SRC=\\d+\\.\\d+\\.\\d+\\.255(?!/32)|DST=\\d+\\.\\d+\\.\\d+\\.255(?!/32)",
+      "description": "Identifies traffic using all-ones host portion in subnets, which typically represents the broadcast address and is invalid for host addressing."
+    },
+    {
+      "id": "IP-SIMULTANEOUS-SOURCE-001",
+      "regex": "SRC=(\\d+\\.\\d+\\.\\d+\\.\\d+).*DST=.*\\n.*SRC=\\1.*DST=.*\\n.*SRC=\\1",
+      "description": "Detects simultaneous connections from the same source IP to multiple destinations in rapid succession, which may indicate scanning or botnet activity."
+    },
+    {
+      "id": "IP-GEOLOCATION-ANOMALY-001",
+      "regex": "IP geolocation mismatch|unusual geolocation pattern|geolocation inconsistency|country hopping|geographically impossible access",
+      "description": "Identifies suspicious access patterns where a single IP address appears to move between geographically distant locations in short time periods."
+    },
+    {
+      "id": "IP-RANGE-SCAN-001",
+      "regex": "SRC=(\\d+\\.\\d+\\.\\d+)\\.(\\d+).*\\n.*SRC=\\1\\.(\\d+).*\\n.*SRC=\\1\\.(\\d+)",
+      "description": "Detects sequential scanning of IP addresses within the same subnet, indicating reconnaissance activity."
+    },
+    {
+      "id": "TOR-EXIT-NODE-001",
+      "regex": "known Tor exit node|Tor network exit|traffic from Tor exit|anonymous proxy detection|Tor relay exit traffic",
+      "description": "Identifies traffic originating from known Tor exit nodes, which may indicate attempts to anonymize malicious activity."
+    },
+    {
+      "id": "FAST-FLUX-NETWORK-001",
+      "regex": "fast flux detection|rapidly changing DNS|multiple A records|short TTL domain|flux network pattern",
+      "description": "Detects fast-flux network activity characterized by rapidly changing IP associations with the same domain, often used by botnets."
+    },
+    {
+      "id": "DYNAMIC-IP-ABUSE-001",
+      "regex": "dynamic IP abuse|residential proxy abuse|ISP dynamic range|suspicious dynamic IP|residential IP scanning",
+      "description": "Identifies suspicious activity from dynamic IP ranges typically assigned to residential users, which may indicate compromised home systems or residential proxy abuse."
+    },
+    {
+      "id": "IP-FRAGMENTATION-ID-REUSE-001",
+      "regex": "fragment ID reuse|duplicate fragmentation ID|IP ID collision|fragment reassembly confusion|identical IP ID",
+      "description": "Detects reuse of IP fragmentation IDs from the same source, which may indicate IP spoofing or attempts to confuse reassembly mechanisms."
+    },
+    {
+      "id": "TCP-RST-INJECTION-001",
+      "regex": "TCP RST injection|connection reset attack|unauthorized connection termination|blind RST attack|TCP sequence prediction RST",
+      "description": "Detects TCP Reset packet injection attacks aimed at disrupting legitimate connections."
+    },
+    {
+      "id": "DNS-REBIND-001",
+      "regex": "DNS rebinding|short TTL DNS response|DNS record TTL < 10|rapidly changing DNS records|multiple A records alternate",
+      "description": "Identifies potential DNS rebinding attacks using very short TTL values to bypass same-origin policy."
+    },
+    {
+      "id": "IPV6-EXTENSION-ABUSE-001",
+      "regex": "IPv6 extension header abuse|excessive IPv6 headers|IPv6 header chain attack|fragmentation header abuse|routing header exploit",
+      "description": "Detects abuse of IPv6 extension headers which can be used to evade security controls or cause denial of service."
+    },
+    {
+      "id": "VLAN-HOPPING-001",
+      "regex": "VLAN hopping|double tagged frame|802.1q tag injection|nested VLAN tags|unauthorized VLAN access",
+      "description": "Identifies attempts to hop between VLANs by manipulating Ethernet frame tags."
+    },
+    {
+      "id": "IP-SUBNET-SPOOF-001",
+      "regex": "SRC=(?:10\\.|172\\.(?:1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.).*DST=(?:10\\.|172\\.(?:1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.).*IN=(?!lo)",
+      "description": "Detects private-to-private network traffic crossing external interfaces, indicating potential IP spoofing."
+    },
+    {
+      "id": "TCP-TSO-ABUSE-001",
+      "regex": "TSO bypass|TCP segmentation evasion|abnormal TCP MSS|invalid TSO packet|segmentation reassembly attack",
+      "description": "Identifies attempts to abuse TCP Segmentation Offload features to evade detection or bypass security controls."
+    },
+    {
       "id": "WEBSOCKET-FLOOD-001",
       "regex": "WebSocket flood|WS connection flood|excessive WebSocket|WebSocket resource exhaustion|WS protocol abuse",
       "description": "Identifies DDoS attacks targeting WebSocket connections."
@@ -291,7 +446,7 @@
       "description": "Detects signatures associated with known IoT botnets like Mirai and its variants."
     },
     {
-      "id": "REFLECTION-ATTACK-001", 
+      "id": "REFLECTION-ATTACK-001",
       "regex": "reflection attack|SSDP reflection|NTP reflection|DNS reflection|Memcached reflection|amplification factor",
       "description": "Identifies reflection/amplification attacks using various UDP protocols."
     },
@@ -364,6 +519,191 @@
       "id": "IP-SPOOF-001",
       "regex": "SRC=.*TTL=\\d{1,2}.*\\n.*SRC=.*TTL=\\d{3}",
       "description": "Detects inconsistent TTL values from the same source IP, indicating potential IP spoofing."
+    },
+    {
+      "id": "EXE-DOWNLOAD-001",
+      "regex": "\\.exe\\b|download.*\\.exe|executable file|application/octet-stream.*\\.exe",
+      "description": "Detects attempts to download executable (.exe) files which may contain malware."
+    },
+    {
+      "id": "EXE-ATTACHMENT-001",
+      "regex": "attachment.*\\.exe|Content-Disposition:.*filename=.*\\.exe",
+      "description": "Identifies executable files sent as email attachments, a common malware distribution method."
+    },
+    {
+      "id": "TROJAN-SIGNATURE-001",
+      "regex": "trojan|malware detected|virus signature|malicious payload|backdoor detected",
+      "description": "Detects signatures or alerts related to trojan malware detection."
+    },
+    {
+      "id": "SUDO-ABUSE-001",
+      "regex": "sudo\\s+rm|sudo\\s+chmod\\s+777|sudo\\s+dd|sudo\\s+(wget|curl).*\\|\\s*bash",
+      "description": "Identifies potentially dangerous sudo command usage including destructive commands."
+    },
+    {
+      "id": "SUDO-BRUTE-FORCE-001",
+      "regex": "sudo: authentication failure|sudo: \\d+ incorrect password attempts|authentication failure.*sudo",
+      "description": "Detects brute force attempts to gain sudo privileges."
+    },
+    {
+      "id": "SUDO-POLICY-BYPASS-001",
+      "regex": "sudoedit.*\\.\\.(/|\\\\)|sudo.*NOPASSWD|sudo policy bypass",
+      "description": "Identifies attempts to bypass sudo policies or restrictions."
+    },
+    {
+      "id": "PACKED-EXE-001",
+      "regex": "UPX compressed|packed executable|obfuscated binary|runtime packer detected",
+      "description": "Detects packed or obfuscated executables which may indicate malicious intent."
+    },
+    {
+      "id": "FILE-BLOCK-EVASION-001",
+      "regex": "file renamed from.*\\.exe|file extension changed|Content-Type mismatch.*executable",
+      "description": "Identifies attempts to evade file blocking by disguising executable files."
+    },
+    {
+      "id": "STEALTHY-DDOS-001",
+      "regex": "low-rate HTTP flood|slow-rate connection|distributed low-volume requests|intermittent request pattern",
+      "description": "Detects low and slow DDoS attacks that attempt to stay below traditional detection thresholds."
+    },
+    {
+      "id": "RESOURCE-DEPLETION-001",
+      "regex": "hash collision|expensive query|CPU spike after request|memory allocation spike|heavy computation path",
+      "description": "Identifies resource depletion attacks targeting CPU, memory, or algorithmic weaknesses."
+    },
+    {
+      "id": "CACHE-POISONING-001",
+      "regex": "cache poisoning|cache inconsistency|vary: header manipulation|cache key manipulation",
+      "description": "Detects web cache poisoning attacks that manipulate HTTP headers or parameters."
+    },
+    {
+      "id": "CRYPTOJACKING-001",
+      "regex": "crypto mining script|cryptojacking detected|coinhive|unauthorized mining|CPU mining activity",
+      "description": "Identifies unauthorized cryptocurrency mining scripts or activities."
+    },
+    {
+      "id": "DESYNC-ATTACK-001",
+      "regex": "HTTP request smuggling|CL.TE|TE.CL|header smuggling|desync detected|HTTP/1.1 pipeline confusion",
+      "description": "Detects HTTP request smuggling/desync attacks exploiting front-end/back-end server differences."
+    },
+    {
+      "id": "WEBSHELL-DETECTION-001",
+      "regex": "webshell detected|suspicious file upload.*\\.php|eval\\(.*POST|shell command execution|file manager upload",
+      "description": "Identifies webshell uploads or activations that provide unauthorized server access."
+    },
+    {
+      "id": "APPLICATION-ABUSE-001",
+      "regex": "endpoint abuse|API endpoint abuse|resource wastage|excessive resource consumption|business logic abuse",
+      "description": "Detects abuse of application endpoints or business logic that may not trigger traditional security alerts."
+    },
+    {
+      "id": "MALICIOUS-PAYLOAD-OBFUSCATION-001",
+      "regex": "base64.*eval|obfuscated JavaScript|encoded payload|string concatenation evasion|charCode obfuscation",
+      "description": "Identifies obfuscated malicious code or payloads attempting to evade detection."
+    },
+    {
+      "id": "DGA-DOMAIN-001",
+      "regex": "domain generation algorithm|random subdomain pattern|algorithmically generated domain|DGA detected",
+      "description": "Detects communication with domains created by Domain Generation Algorithms, commonly used by malware."
+    },
+    {
+      "id": "LATERAL-MOVEMENT-001",
+      "regex": "lateral movement detected|credential reuse|account switching|internal reconnaissance|host pivoting",
+      "description": "Identifies patterns suggesting lateral movement within a network after initial compromise."
+    },
+    {
+      "id": "CREDENTIAL-STUFFING-001",
+      "regex": "credential stuffing|multiple accounts.*single IP|login attempt pattern|automated login attempts",
+      "description": "Detects credential stuffing attacks where stolen username/password combinations are tried en masse."
+    },
+    {
+      "id": "WAF-BYPASS-001",
+      "regex": "WAF bypass|evasion technique|signature bypass|filter evasion|alternate encoding|multi-layer obfuscation",
+      "description": "Identifies sophisticated attempts to bypass Web Application Firewall protections."
+    },
+    {
+      "id": "LOG4J-EXPLOIT-001",
+      "regex": "\\$\\{jndi:(ldap|rmi|dns|nis|iiop|corba|nds|http):/|log4j vulnerability|log4shell|jndi injection",
+      "description": "Detects exploitation attempts of Log4j vulnerabilities (Log4Shell)."
+    },
+    {
+      "id": "SUPPLY-CHAIN-COMPROMISE-001",
+      "regex": "package integrity mismatch|unauthorized dependency|modified library|compromised package|unexpected module change",
+      "description": "Identifies indicators of supply chain compromises in software dependencies or packages."
+    },
+    {
+      "id": "DATA-EXFILTRATION-001",
+      "regex": "unusual data transfer|large outbound traffic|sensitive data in request|unexpected data upload|DNS tunneling",
+      "description": "Detects patterns indicating potential data exfiltration through various channels."
+    },
+    {
+      "id": "SILENT-EXECUTION-001",
+      "regex": "fileless execution|memory-only malware|living off the land|LOLBin abuse|legitimate tool abuse",
+      "description": "Identifies fileless malware or attacks that use legitimate system tools to avoid detection."
+    },
+    {
+      "id": "API-SECURITY-BYPASS-001",
+      "regex": "API version downgrade|insecure API fallback|API constraint bypass|parameter manipulation|broken object level authorization",
+      "description": "Detects attempts to exploit API security weaknesses or bypass API security controls."
+    },
+    {
+      "id": "ZERO-DAY-INDICATOR-001",
+      "regex": "unknown attack vector|unrecognized exploit pattern|zero-day indicator|novel attack technique|unclassified attack signature",
+      "description": "Identifies patterns that may indicate previously unknown attack vectors or zero-day exploits."
+    },
+    {
+      "id": "DISTRIBUTED-SCANNING-001",
+      "regex": "coordinated scanning|distributed reconnaissance|scan coordination|multi-source probing|synchronized scanning",
+      "description": "Detects coordinated scanning activities distributed across multiple source IPs."
+    },
+    {
+      "id": "BROWSER-EXPLOITATION-001",
+      "regex": "browser exploit|CVE-\\d+-\\d+.*browser|DOM-based attack|client-side exploit|browser vulnerability",
+      "description": "Identifies exploitation attempts targeting web browser vulnerabilities."
+    },
+    {
+      "id": "LIVING-OFF-THE-LAND-001",
+      "regex": "powershell -enc|certutil -decode|regsvr32 /s /u /i|mshta javascript|wmic.*process call create",
+      "description": "Detects use of legitimate Windows tools and utilities for malicious purposes."
+    },
+    {
+      "id": "MEMORY-SCRAPING-001",
+      "regex": "memory scanning|RAM scraping|process memory dump|memory harvesting|heap inspection",
+      "description": "Identifies attempts to scan or extract sensitive data from system memory."
+    },
+    {
+      "id": "CONTAINER-ESCAPE-001",
+      "regex": "container escape|docker breakout|kubernetes privilege escalation|namespace escape|container boundary violation",
+      "description": "Detects attempts to escape from containerized environments or escalate privileges within container orchestration."
+    },
+    {
+      "id": "FIRMWARE-TAMPERING-001",
+      "regex": "firmware modification|UEFI tampering|BIOS alteration|persistent firmware implant|hardware level compromise",
+      "description": "Identifies indicators of firmware or hardware-level tampering or compromise."
+    },
+    {
+      "id": "RANSOMWARE-PRECURSOR-001",
+      "regex": "mass file access|sequential file operations|high entropy file writes|shadow copy deletion|backup sabotage",
+      "description": "Detects behaviors that often precede ransomware encryption activities."
+    },
+    {
+      "id": "MALICIOUS-MACRO-001",
+      "regex": "document.*macro.*enabled|auto_open|auto_close|\\bwscript\\b|\\bcscript\\b|powershell -e|document\\.write.*fromCharCode",
+      "description": "Identifies malicious macros in documents that may download or execute malware."
+    },
+    {
+      "id": "SIDE-CHANNEL-ATTACK-001",
+      "regex": "timing attack|speculative execution|side-channel exploitation|cache timing|Spectre|Meltdown",
+      "description": "Detects patterns that may indicate side-channel attacks against CPU or memory."
+    },
+    {
+      "id": "AIRGAP-BRIDGE-001",
+      "regex": "air-gap bypass|covert channel|acoustic transmission|optical data bridge|electromagnetic leakage",
+      "description": "Identifies attempts to bridge air-gapped networks using covert channels."
+    },
+    {
+      "id": "KERNEL-EXPLOITATION-001",
+      "regex": "kernel exploit|kernel vulnerability|privilege escalation.*kernel|CVE-\\d+-\\d+.*kernel|unauthorized ring0 access",
+      "description": "Detects exploitation attempts targeting operating system kernel vulnerabilities."
     },
     {
       "id": "INTERNAL-HOST-001",

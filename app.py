@@ -427,6 +427,7 @@ class DeepSeekReasoner:
         print("\n=========================================")
         print("🧠 SENDING TO LM STUDIO FOR TRAINING")
         print("=========================================")
+       
         
         try:
             # Get the raw response from the API result
@@ -513,6 +514,9 @@ Example of ENTIRE response:
             
             # Send to LM Studio
             print(f"🔗 Connecting to LM Studio at: {self.lm_studio_url}")
+            print("\n=========================================")
+            print("🧠 Contructing response from local LLM")
+            print("=========================================")
             try:
                 # First check if LM Studio is reachable with a quick connection test
                 test_request = requests.get(self.lm_studio_url.rsplit('/', 1)[0], timeout=2)
@@ -633,7 +637,7 @@ Example of ENTIRE response:
                         # Display reasoning in a nice format in the logs - make it very visible
                         print("\n")
                         print("🧠" * 40)
-                        print("🧠                 Local LLM is thinking                  🧠")
+                        print("🧠                 Response from Local LLM               🧠")
                         print("🧠" * 40)
                         print("\n")
                         

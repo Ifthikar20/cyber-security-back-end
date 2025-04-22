@@ -411,12 +411,21 @@ Respond ONLY with a JSON object in this EXACT format:
 
 {{
   "reasoning": [
-    "R":"Reason 1 about security implications",
-    "R":"Reason 2 about security implications",
-    "R":"Reason 3 about security implications"
+    "R:Reason 1 about security implications",
+    "R:Reason 2 about security implications",
+    "R:Reason 3 about security implications",
+    "R:Reason 4 about security implications",
+    "R:Reason 5 about security implications"
+    "R:Reason 6 about security implications",
+    "R:Reason 7 about security implications"
+    "R:Reason 8 about security implications",
+    "R:Reason 9 about security implications"
+    "R:Reason 10 about security implications",
+    "R:Reason 11 about security implications"
   ]
 }}
 
+Note: You can include more than 20 reasoning points if needed. This is just an example format.
 DO NOT include any other text, explanation, or thinking. Return ONLY the JSON object.
 """
             
@@ -440,13 +449,16 @@ You MUST:
 3. NEVER add any prefixes, suffixes, or explanation
 4. Structure each reasoning point with "R:" prefix exactly as shown
 5. Keep responses strictly in the required JSON schema
+6. Provide as many detailed reasoning points as needed (at least 3, but can include more)
 
 Example of ENTIRE response:
 {
   "reasoning": [
-    "R":"Security implication 1",
-    "R":"Security implication 2",
-    "R":"Security implication 3"
+    "R:Security implication 1",
+    "R:Security implication 2",
+    "R:Security implication 3",
+    "R:Security implication 4",
+    "R:Security implication 5"
   ]
 }
 """
@@ -539,9 +551,15 @@ Example of ENTIRE response:
                                 if "reasoning" in json_response and isinstance(json_response["reasoning"], list):
                                     # Extract reasoning points and format them
                                     for reason in json_response["reasoning"]:
-                                        if isinstance(reason, str) and reason.startswith("R:"):
-                                            formatted_reason = f"🔹 {reason[2:]}"  # Remove R: and add emoji
-                                            reasoning_bullets.append(formatted_reason)
+                                        if isinstance(reason, str):
+                                            # Handle both "R:text" and "R:" prefix formats
+                                            if reason.startswith("R:"):
+                                                formatted_reason = f"🔹 {reason[2:]}"  # Remove R: and add emoji
+                                                reasoning_bullets.append(formatted_reason)
+                                            # Also handle any other valid reasoning format
+                                            elif len(reason) > 10:  # Some minimum length check
+                                                formatted_reason = f"🔹 {reason}"  # Add emoji
+                                                reasoning_bullets.append(formatted_reason)
                                     
                                     # Return just the clean JSON
                                     validated_response = json.dumps(json_response, indent=2)
@@ -616,8 +634,11 @@ Example of ENTIRE response:
                         # For demo purposes, use the exact example reasoning provided if no reasoning bullets
                         if not reasoning_bullets:
                             reasoning_bullets = [
-                                "Model unable to reason",
-
+                                "Model unable to provide detailed security reasoning",
+                                "Analysis requires more context from log data",
+                                "Consider running with additional log files for better results",
+                                "Fallback mode activated due to processing limitations",
+                                "Recommend manual review of logs for complete analysis"
                             ]
                         
                         # Reasoning bullets are already formatted with 🔹 emoji

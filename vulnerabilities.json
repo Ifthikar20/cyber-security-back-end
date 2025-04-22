@@ -1,7 +1,32 @@
 {
   "patterns": [
     {
-      "id": "DNS-AMPLIFICATION-001", 
+      "id": "SYN-FLOOD-001",
+      "regex": "SYN flood|port scan|multiple SYN packets|unexpected SYN-ACK|PROTO=TCP.*SYN|half-open connections|connection timeout exceeded",
+      "description": "Detects SYN flood attacks where multiple SYN packets are sent without completing the TCP handshake."
+    },
+    {
+      "id": "SLOWLORIS-001",
+      "regex": "connection timeout|partial HTTP request|incomplete headers|stalled connection|multiple partial requests|request timed out",
+      "description": "Identifies Slowloris attacks where connections are kept open with partial HTTP requests."
+    },
+    {
+      "id": "HTTP2-RAPID-RESET-001",
+      "regex": "HTTP/2.*RST_STREAM|GOAWAY frame|multiple stream resets|stream error.*cancel|rapid connection reset|HTTP/2 reset flood",
+      "description": "Detects HTTP/2 Rapid Reset attacks where many stream reset frames are sent."
+    },
+    {
+      "id": "TCP-ACK-FLOOD-001", 
+      "regex": "ACK flood|multiple ACK packets|unexpected ACK|PROTO=TCP.*ACK|excessive ACK packets|ACK.*without data",
+      "description": "Identifies TCP ACK flood attacks where large numbers of ACK packets are sent."
+    },
+    {
+      "id": "TCP-ZERO-WINDOW-001",
+      "regex": "TCP zero window|window size: 0|window closed|window update 0|PROTO=TCP.*win 0|flow control|tcp window full",
+      "description": "Detects TCP Zero Window attacks that exploit flow control mechanisms."
+    },
+    {
+      "id": "DNS-AMPLIFICATION-001",
       "regex": "IN=.* OUT= .* SRC=.* DST=.* .* PROTO=UDP SPT=53 DPT=\\d+ LEN=(\\d{3,})",
       "description": "Detects DNS amplification attacks with large UDP packets from DNS port 53 to non-standard ports."
     },
@@ -22,7 +47,7 @@
     },
     {
       "id": "XSS-001",
-      "regex": "<script>.*?</script>|<.*?on\\\\w+\\\\s*=\\\\s*['\"]?[^>]+>",
+      "regex": "<script>.*?</script>|<.*?on\\w+\\s*=\\s*['\"]?[^>]+>",
       "description": "Detects inline script tags or event handlers in user input, indicating potential XSS attacks."
     },
     {
@@ -32,7 +57,7 @@
     },
     {
       "id": "XSS-003",
-      "regex": "<img\\\\s+src\\\\s*=\\\\s*['\"]?javascript:|<iframe\\\\s+src\\\\s*=\\\\s*['\"]?javascript:",
+      "regex": "<img\\s+src\\s*=\\s*['\"]?javascript:|<iframe\\s+src\\s*=\\s*['\"]?javascript:",
       "description": "Matches XSS in image or iframe tags with javascript: sources."
     },
     {
@@ -53,12 +78,12 @@
     {
       "id": "FILE-INCLUSION-001",
       "regex": "include.*?\\.\\.|require.*?\\.\\.|import.*?\\.\\.|\\.\\./|\\.\\.\\\\|/etc/passwd|/proc/self/environ",
-      "description": "Detects Local/Remote File Inclusion attempts."
+      "description": "Detects Local/Remote File Inclusion attempts targeting sensitive files or directories."
     },
     {
       "id": "PATH-TRAVERSAL-001",
       "regex": "\\.\\.(/|\\\\)|/%2e%2e/|\\.\\.%2f|\\.\\.%5c|/etc/passwd|/etc/shadow|/proc/self/environ",
-      "description": "Matches directory traversal attempts."
+      "description": "Matches directory traversal attempts targeting sensitive files or directories."
     },
     {
       "id": "COMMAND-INJECTION-001",
@@ -161,19 +186,94 @@
       "description": "Detects DDoS mitigation actions."
     },
     {
-      "id": "DDOS-DISTRIBUTED-001",
-      "regex": "(INFO: (\\d+\\.\\d+\\.\\d+\\.\\d+).*?GET /.*?\\s-\\s200\\sOK\\s*\\n.*?){5,}",
-      "description": "Detects rapid GET requests to the root endpoint from 5+ distinct IPs."
-    },
-    {
-      "id": "DDOS-GET-FLOOD-001",
-      "regex": "(INFO: \\d+\\.\\d+\\.\\d+\\.\\d+ - GET / - 200 OK\\s*\\n.*?){5,}",
-      "description": "Detects 5+ GET requests to the root endpoint, marking it as a DDoS attack."
-    },
-    {
       "id": "ALERT-DETECTION-001",
       "regex": "ALERT:.*(SSRF|Command injection|attack detected)",
       "description": "Detects alert messages indicating SSRF, command injection, or other attacks."
+    },
+    {
+      "id": "SYN-FLOOD-001",
+      "regex": "PROTO=TCP.*SYN.*(?!ACK).*LEN=\\d+.*\\n.*PROTO=TCP.*SYN.*(?!ACK)",
+      "description": "Detects multiple TCP SYN packets without corresponding ACKs, indicating a SYN flood attack."
+    },
+    {
+      "id": "SLOWLORIS-001",
+      "regex": "GET /.*\\n(?!Host:).*200 OK.*\\n.*GET /.*\\n(?!Host:)",
+      "description": "Detects incomplete HTTP GET requests without Host headers, sent repeatedly, indicating a Slowloris attack."
+    },
+    {
+      "id": "APP-FLOOD-001",
+      "regex": "(GET /login.*200 OK\\s*\\n.*?){5,}",
+      "description": "Detects 5+ rapid GET requests to the login endpoint, indicating an application-layer flood."
+    },
+    {
+      "id": "REFLECTION-NON-DNS-001",
+      "regex": "PROTO=UDP.*SPT=123.*LEN=\\d{3,}",
+      "description": "Detects large UDP packets from NTP port 123, indicating a non-DNS reflection attack."
+    },
+    {
+      "id": "FRAG-FLOOD-001",
+      "regex": "PROTO=IP.*FRAG.*LEN=\\d{3,}.*\\n.*PROTO=IP.*FRAG",
+      "description": "Detects multiple fragmented IP packets, indicating a fragmented packet flood."
+    },
+    {
+      "id": "FIREWALL-MISCONFIG-001",
+      "regex": "ACTION=ALLOW.*SRC=.*blacklisted",
+      "description": "Detects allowed traffic from blacklisted IPs, indicating a firewall misconfiguration."
+    },
+    {
+      "id": "IP-SPOOF-001",
+      "regex": "SRC=.*TTL=\\d{1,2}.*\\n.*SRC=.*TTL=\\d{3}",
+      "description": "Detects inconsistent TTL values from the same source IP, indicating potential IP spoofing."
+    },
+    {
+      "id": "INTERNAL-HOST-001",
+      "regex": "SRC=192\\.168\\.\\d+\\.\\d+.*ATTACK.*",
+      "description": "Detects attack traffic from internal IP addresses, indicating a compromised internal host."
+    },
+    {
+      "id": "RESOURCE-MISCONFIG-001",
+      "regex": "max_connections.*exceeded.*(?!Rate limiting)",
+      "description": "Detects connection limit exceedances without mitigation, indicating resource misconfiguration."
+    },
+    {
+      "id": "EXPOSED-SERVICE-001",
+      "regex": "DST=.*DPT=22.*PROTO=TCP.*ATTACK",
+      "description": "Detects attack traffic targeting SSH port 22, indicating an exposed service vulnerability."
+    },
+    {
+      "id": "HTTP2-CONTINUATION-001",
+      "regex": "HTTP/2.*CONTINUATION.*(?!END_HEADERS)",
+      "description": "Detects HTTP/2 CONTINUATION frames without END_HEADERS, indicating a CONTINUATION flood attack."
+    },
+    {
+      "id": "APACHE-DOS-001",
+      "regex": "Server: Apache/2\\.4\\.(0|[1-4][0-9]|50|51).*REQUEST.*DENY",
+      "description": "Detects denied requests to Apache HTTP Server versions 2.4.0–2.4.51, vulnerable to DoS (CVE-2022-22720, CVE-2022-22721)."
+    },
+    {
+      "id": "TCP-ACK-FLOOD-001",
+      "regex": "PROTO=TCP.*ACK.*LEN=\\d+.*\\n.*PROTO=TCP.*ACK.*\\n.*PROTO=TCP.*ACK",
+      "description": "Detects multiple TCP ACK packets in rapid succession, indicating a TCP ACK flood attack."
+    },
+    {
+      "id": "HTTP2-RAPID-RESET-001",
+      "regex": "HTTP/2.*RST_STREAM.*\\n.*HTTP/2.*RST_STREAM.*\\n.*HTTP/2.*RST_STREAM",
+      "description": "Detects multiple HTTP/2 RST_STREAM frames in rapid succession, indicating a Rapid Reset attack (CVE-2023-44487)."
+    },
+    {
+      "id": "EXPOSED-MANAGEMENT-001",
+      "regex": "GET /admin.*200 OK|POST /api/management.*200 OK",
+      "description": "Detects successful requests to admin or management endpoints, indicating an exposed management interface."
+    },
+    {
+      "id": "RATE-LIMIT-MISCONFIG-001",
+      "regex": "(GET /.*200 OK\\s*\\n.*?){10,}.*(?!Rate limiting)",
+      "description": "Detects 10+ rapid GET requests without rate limiting triggered, indicating a rate limiting misconfiguration."
+    },
+    {
+      "id": "TCP-ZERO-WINDOW-001",
+      "regex": "PROTO=TCP.*WINDOW=0.*\\n.*PROTO=TCP.*WINDOW=0",
+      "description": "Detects multiple TCP packets with zero window size, indicating a TCP Zero Window attack."
     }
   ]
 }

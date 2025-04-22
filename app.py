@@ -76,6 +76,40 @@ class LogAnalyzer:
     def __init__(self, log_content: str):
         self.log_content = log_content
         self.vulnerabilities = VULNERABILITIES
+        
+    def _determine_severity(self, line_content: str, is_high_condition: bool) -> str:
+        """Determine severity based on log content and conditions.
+        
+        Args:
+            line_content: The log line content to analyze
+            is_high_condition: Boolean flag indicating if other conditions suggest high severity
+            
+        Returns:
+            String indicating severity level: "high", "medium", or "low"
+        """
+        # High severity keywords
+        high_severity_patterns = [
+            '[WARN]', 'CRITICAL', 'danger', 'EMERGENCY', 'FATAL', 'ERROR',
+            'FAILURE', 'EXPLOIT', 'VULNERABILITY', 'BREACH', 'ATTACK', 'COMPROMISE'
+        ]
+        
+        # Medium severity keywords
+        medium_severity_patterns = [
+            'warn', 'warning', 'attention', 'suspicious', 'unusual', 'detected', 'notice'
+        ]
+        
+        # Check for high severity patterns
+        for pattern in high_severity_patterns:
+            if pattern in line_content:
+                return "high"
+        
+        # Check for medium severity patterns (case insensitive)
+        for pattern in medium_severity_patterns:
+            if pattern.lower() in line_content.lower():
+                return "medium"
+        
+        # Use the condition as a fallback if no patterns match
+        return "high" if is_high_condition else "medium"
     
     def basic_pattern_matching(self) -> List[Dict[str, Any]]:
         """Perform basic pattern matching against known vulnerability patterns."""
@@ -99,13 +133,17 @@ class LogAnalyzer:
                         "end": match.end()
                     }
                     
+                    # Determine the severity based on the log content
+                    severity = self._determine_severity(line.strip(), "CRITICAL" in pattern["id"] or "INJECTION" in pattern["id"])
+                    
                     findings.append({
                         "vulnerability_id": pattern["id"],
                         "description": pattern["description"],
                         "line_number": i + 1,
                         "line_content": line.strip(),
                         "confidence": "medium",  # Basic pattern matching has medium confidence
-                        "match_position": match_position
+                        "match_position": match_position,
+                        "severity": severity
                     })
         
         # Then, add contextual DDoS detection
@@ -165,7 +203,7 @@ class LogAnalyzer:
                         "start": lines[first_line_index].find(ip),
                         "end": lines[first_line_index].find(ip) + len(ip)
                     },
-                    "severity": "high" if count > 20 else "medium"
+                    "severity": self._determine_severity(lines[first_line_index], count > 20)
                 })
         
         # Detect distributed attacks (many IPs, same endpoint)
@@ -188,7 +226,7 @@ class LogAnalyzer:
                             "start": lines[line_index].find(endpoint) if lines[line_index].find(endpoint) >= 0 else 0,
                             "end": lines[line_index].find(endpoint) + len(endpoint) if lines[line_index].find(endpoint) >= 0 else len(lines[line_index])
                         },
-                        "severity": "high" if unique_ips > 10 else "medium"
+                        "severity": self._determine_severity(lines[line_index], unique_ips > 10)
                     })
         
         # Detect time-based patterns (many requests in a short timeframe)
@@ -225,7 +263,7 @@ class LogAnalyzer:
                                 "start": 0,
                                 "end": len(lines[line_index])
                             },
-                            "severity": "high" if len(records) > 30 or unique_ips > 5 else "medium"
+                            "severity": self._determine_severity(lines[line_index], len(records) > 30 or unique_ips > 5)
                         })
             except Exception as e:
                 # If datetime parsing fails, continue with other detection methods

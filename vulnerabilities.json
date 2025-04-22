@@ -156,6 +156,146 @@
       "description": "Detects denied ICMP traffic."
     },
     {
+      "id": "ICMP-FLOOD-001",
+      "regex": "ICMP flood|ping flood|excessive ICMP echo|PROTO=ICMP.*TYPE=8|multiple echo request|ping of death",
+      "description": "Detects ICMP flood attacks where targets are overwhelmed with ICMP Echo Request (ping) packets."
+    },
+    {
+      "id": "ICMP-SMURF-001",
+      "regex": "ICMP.*broadcast|smurf attack|amplified ICMP|ICMP echo reply flood|multiple ICMP TYPE=0|PROTO=ICMP.*TYPE=0.*LEN=(\\d{3,})",
+      "description": "Identifies Smurf attacks using broadcast ICMP traffic for amplification."
+    },
+    {
+      "id": "ICMP-FRAGMENT-001",
+      "regex": "ICMP fragment|fragmented ICMP|incomplete ICMP|PROTO=ICMP.*INCOMPLETE|overlapping ICMP fragments",
+      "description": "Detects fragmented ICMP packet attacks intended to bypass security controls."
+    },
+    {
+      "id": "ICMP-TIMESTAMP-001",
+      "regex": "ICMP timestamp|PROTO=ICMP.*TYPE=13|PROTO=ICMP.*TYPE=14|timestamp request|timestamp reply",
+      "description": "Identifies ICMP timestamp request/reply attacks used for reconnaissance or time-based exploits."
+    },
+    {
+      "id": "ICMP-ADDRESS-MASK-001",
+      "regex": "ICMP address mask|PROTO=ICMP.*TYPE=17|PROTO=ICMP.*TYPE=18|address mask request|address mask reply",
+      "description": "Detects ICMP address mask request/reply attacks used for network reconnaissance."
+    },
+    {
+      "id": "ICMP-REDIRECT-001",
+      "regex": "ICMP redirect|PROTO=ICMP.*TYPE=5|routing redirect|unauthorized ICMP redirect",
+      "description": "Identifies ICMP redirect attacks that can manipulate routing tables."
+    },
+    {
+      "id": "UDP-AMPLIFICATION-001",
+      "regex": "UDP amplification|NTP amplification|DNS amplification|SSDP amplification|CharGen|Memcached|PROTO=UDP.*LEN=(\\d{3,})",
+      "description": "Detects UDP-based amplification attacks using various protocols like NTP, DNS, SSDP, etc."
+    },
+    {
+      "id": "UDP-FRAGMENTATION-001",
+      "regex": "UDP fragment|fragmented UDP|incomplete UDP|PROTO=UDP.*INCOMPLETE|overlapping UDP fragments",
+      "description": "Identifies fragmented UDP packet attacks designed to evade detection."
+    },
+    {
+      "id": "TCP-CONNECTION-FLOOD-001",
+      "regex": "connection limit reached|too many connections|max connections exceeded|connection queue full|connection table full",
+      "description": "Detects TCP connection-based flood attacks exhausting connection tables."
+    },
+    {
+      "id": "TCP-PSH-ACK-FLOOD-001",
+      "regex": "PSH-ACK flood|PROTO=TCP.*PSH ACK|multiple PSH packets|excessive PSH-ACK|PSH flag abuse",
+      "description": "Identifies floods of TCP packets with PSH-ACK flags set."
+    },
+    {
+      "id": "TCP-FIN-FLOOD-001",
+      "regex": "FIN flood|PROTO=TCP.*FIN|multiple FIN packets|excessive FIN|unexpected FIN packets",
+      "description": "Detects floods of TCP FIN packets without proper connection teardown."
+    },
+    {
+      "id": "TCP-RST-FLOOD-001",
+      "regex": "RST flood|PROTO=TCP.*RST|multiple RST packets|excessive RST|connection reset attack|unexpected RST packets",
+      "description": "Identifies floods of TCP RST packets designed to disrupt connections."
+    },
+    {
+      "id": "HTTP-SLOWPOST-001",
+      "regex": "slow POST|HTTP POST.*slow|content-length mismatch|incomplete POST data|slow upload|request body timeout",
+      "description": "Detects HTTP SlowPost attacks where POST requests are sent very slowly."
+    },
+    {
+      "id": "HTTP-SLOWREAD-001",
+      "regex": "slow read|client read timeout|read rate limit|socket read timeout|slow download|response buffer timeout",
+      "description": "Identifies HTTP SlowRead attacks where responses are read very slowly."
+    },
+    {
+      "id": "HTTPS-SSL-RENEGOTIATION-001",
+      "regex": "SSL renegotiation|TLS renegotiation|multiple handshakes|excessive SSL handshakes|handshake flood|SSL resource exhaustion",
+      "description": "Detects SSL/TLS renegotiation attacks that exhaust server resources with repeated handshakes."
+    },
+    {
+      "id": "HTTPS-SSL-DOS-001",
+      "regex": "SSL DoS|HTTPS resource exhaustion|SSL session cache full|SSL handshake timeout|TLS resource limit",
+      "description": "Identifies SSL/TLS-based denial of service attacks targeting the encryption process."
+    },
+    {
+      "id": "LAYER7-CACHE-BYPASS-001",
+      "regex": "cache bypass|cache-busting|random query strings|unique URL parameters|high cache miss ratio|excessive origin hits",
+      "description": "Detects Layer 7 DDoS using cache-busting techniques to bypass CDN caching."
+    },
+    {
+      "id": "LAYER7-APPSEC-BYPASS-001",
+      "regex": "WAF bypass|security rule evasion|rule bypass attempt|evasion technique|encoding bypass|signature evasion",
+      "description": "Identifies attempts to bypass application security controls as part of a DDoS attack."
+    },
+    {
+      "id": "HMTP-HOST-HEADER-ATTACK-001",
+      "regex": "host header attack|host header injection|HTTP host mismatch|multiple host headers|invalid host value",
+      "description": "Detects HTTP Host header manipulation attacks."
+    },
+    {
+      "id": "HTTP-HEADER-FLOOD-001",
+      "regex": "header flood|excessive headers|header count exceeded|header size limit|large cookie|large HTTP headers",
+      "description": "Identifies HTTP requests with extremely large or numerous headers."
+    },
+    {
+      "id": "BROWSER-FINGERPRINTING-EVASION-001",
+      "regex": "bot detection evasion|browser fingerprint spoofing|headless browser detected|automation detection|bot signature|fake user-agent",
+      "description": "Detects attempts to evade browser fingerprinting and bot detection."
+    },
+    {
+      "id": "DDOS-BOTNET-COORDINATION-001",
+      "regex": "botnet coordination|C&C communication|distributed command pattern|botnet signature|coordinated attack pattern|synchronized requests",
+      "description": "Identifies patterns indicating botnet coordination in DDoS attacks."
+    },
+    {
+      "id": "QUIC-FLOOD-001",
+      "regex": "QUIC flood|UDP.*QUIC|excessive QUIC requests|QUIC resource exhaustion|QUIC protocol abuse",
+      "description": "Detects DDoS attacks using the QUIC protocol."
+    },
+    {
+      "id": "WEBSOCKET-FLOOD-001",
+      "regex": "WebSocket flood|WS connection flood|excessive WebSocket|WebSocket resource exhaustion|WS protocol abuse",
+      "description": "Identifies DDoS attacks targeting WebSocket connections."
+    },
+    {
+      "id": "API-GATEWAY-FLOOD-001",
+      "regex": "API gateway flood|API limit exceeded|API rate limit|excessive API calls|API abuse pattern",
+      "description": "Detects DDoS attacks specifically targeting API gateways."
+    },
+    {
+      "id": "MULTI-VECTOR-ATTACK-001",
+      "regex": "multiple attack vectors|combined attack|hybrid DDoS|sequential attack pattern|attack vector rotation",
+      "description": "Identifies multi-vector DDoS attacks using multiple techniques simultaneously."
+    },
+    {
+      "id": "IOT-BOTNET-SIGNATURE-001",
+      "regex": "IoT botnet|Mirai signature|Mirai variant|IoT malware pattern|botnet command signature",
+      "description": "Detects signatures associated with known IoT botnets like Mirai and its variants."
+    },
+    {
+      "id": "REFLECTION-ATTACK-001", 
+      "regex": "reflection attack|SSDP reflection|NTP reflection|DNS reflection|Memcached reflection|amplification factor",
+      "description": "Identifies reflection/amplification attacks using various UDP protocols."
+    },
+    {
       "id": "UDP-ABUSE-001",
       "regex": "PROTO=UDP.*ACTION=DENY",
       "description": "Detects denied UDP traffic."

@@ -131,6 +131,111 @@
       "description": "Detects XML injection attempts."
     },
     {
+      "id": "HTTP-ERROR-001",
+      "regex": "\\b(4[0-9]{2}|5[0-9]{2})\\b",
+      "description": "Matches all HTTP 4xx and 5xx error status codes."
+    },
+    {
+      "id": "HTTP-SERVER-ERROR-001",
+      "regex": "\\b5[0-9]{2}\\b",
+      "description": "Matches all HTTP 5xx server error status codes."
+    },
+    {
+      "id": "HTTP-CLIENT-ERROR-001",
+      "regex": "\\b4[0-9]{2}\\b",
+      "description": "Matches all HTTP 4xx client error status codes."
+    },
+    {
+      "id": "HTTP-SPECIFIC-ERRORS-001",
+      "regex": "\\b(500|501|502|503|504|505|506|507|508|509|510|511)\\b",
+      "description": "Matches specific HTTP 5xx server error status codes."
+    },
+    {
+      "id": "HTTP-SPECIFIC-ERRORS-002",
+      "regex": "\\b(400|401|402|403|404|405|406|407|408|409|410|411|412|413|414|415|416|417|418|421|422|423|424|425|426|428|429|431|451)\\b",
+      "description": "Matches specific HTTP 4xx client error status codes."
+    },
+    {
+      "id": "HTTP-CRITICAL-ERRORS-001",
+      "regex": "\\b(500|503|504)\\b",
+      "description": "Matches critical server errors: 500 (Internal Server Error), 503 (Service Unavailable), 504 (Gateway Timeout)."
+    },
+    {
+      "id": "HTTP-AUTH-ERRORS-001",
+      "regex": "\\b(401|403|407)\\b",
+      "description": "Matches authentication/authorization errors: 401 (Unauthorized), 403 (Forbidden), 407 (Proxy Authentication Required)."
+    },
+    {
+      "id": "HTTP-RATE-LIMIT-ERROR-001",
+      "regex": "\\b429\\b",
+      "description": "Matches HTTP 429 Too Many Requests error (rate limiting)."
+    },
+    {
+      "id": "HTTP-CENSORSHIP-ERROR-001",
+      "regex": "\\b451\\b",
+      "description": "Matches HTTP 451 Unavailable For Legal Reasons error (censorship)."
+    },
+    {
+      "id": "HTTP-ERROR-LOG-FORMAT-001",
+      "regex": "HTTP\\s+\\d+\\.\\d+\\s+(4[0-9]{2}|5[0-9]{2})\\s+[\\w\\s]+",
+      "description": "Matches HTTP error logs with version, status code, and message."
+    },
+    {
+      "id": "HTTP-ERROR-WITH-TIMESTAMP-001",
+      "regex": "\\[(\\d{2}/\\w{3}/\\d{4}:\\d{2}:\\d{2}:\\d{2})\\s+[+-]\\d{4}\\]\\s+\"\\w+\\s+.*?\"\\s+(4[0-9]{2}|5[0-9]{2})\\s+\\d+",
+      "description": "Matches Apache/Nginx log entries containing HTTP error codes with timestamps."
+    },
+    {
+      "id": "HTTP-ERROR-PATTERN-001",
+      "regex": "(error|exception|failure|failed|timeout|unavailable).*?(4[0-9]{2}|5[0-9]{2})",
+      "description": "Matches error terms near HTTP status codes in log messages."
+    },
+    {
+      "id": "COMMAND-INJECTION-001",
+      "regex": "command execution|shell command|exec\\(|system\\(|popen\\(|passthru\\(|\\?cmd=|\\|.*\\||&&.*&&|;`.*`|;.*curl",
+      "description": "Identifies command injection attempts."
+    },
+    {
+      "id": "API-ABUSE-001",
+      "regex": "((GET|POST).*?\\s-\\s200\\sOK\\s*\\n.*?){4,}",
+      "description": "Detects API abuse via 4+ rapid, successful requests."
+    },
+    {
+      "id": "PROBING-001",
+      "regex": "((GET|POST).*?\\s-\\s200\\sOK\\s*\\n.*?){3,}",
+      "description": "Detects probing with 3+ rapid requests."
+    },
+    {
+      "id": "CSRF-001",
+      "regex": "missing CSRF token|invalid CSRF token|CSRF token validation failed",
+      "description": "Detects missing or invalid CSRF tokens in POST requests."
+    },
+    {
+      "id": "CSRF-002",
+      "regex": "POST.*?\\s-\\s200\\sOK.*?(?!CSRF token)",
+      "description": "Flags POST requests lacking CSRF token validation."
+    },
+    {
+      "id": "SESSION-HIJACKING-001",
+      "regex": "session fixation|invalid session ID|session token mismatch|unexpected session change",
+      "description": "Detects session manipulation attempts."
+    },
+    {
+      "id": "RCE-001",
+      "regex": "remote code execution|eval\\(|assert\\(|preg_replace.*?/e|create_function\\(",
+      "description": "Matches Remote Code Execution attempts."
+    },
+    {
+      "id": "DOS-001",
+      "regex": "denial of service|resource exhaustion|too many connections|connection limit exceeded",
+      "description": "Identifies general DoS attacks."
+    },
+    {
+      "id": "XML-INJECTION-001",
+      "regex": "<!\\[CDATA\\[.*?\\]\\]>|<!DOCTYPE.*?>|<?xml.*?>",
+      "description": "Detects XML injection attempts."
+    },
+    {
       "id": "SSRF-001",
       "regex": "http://localhost|http://127\\.0\\.0\\.1|http://169\\.254\\.169\\.254|file://|gopher://|dict://",
       "description": "Matches Server-Side Request Forgery attempts."
